@@ -4,14 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Lead, LeadFormData } from "@/lib/types";
 import {
+  displayBudget,
+  displayRequirement,
+  getLeadStatus,
+  leadStatusOption,
+  leadTemperatureOption,
+} from "@/lib/lead-filters";
+import { formatMeasureRange } from "@/lib/lead-requirements";
+import {
   cn,
-  formatDateTime,
   formatFollowUpDateTime,
   getInitials,
-  getLeadStatus,
   getLeadUrgency,
   normalizeIndianPhone,
-  type LeadStatus,
 } from "@/lib/utils";
 import { CallWhatsAppButtons } from "./CallWhatsAppButtons";
 import { RescheduleButtons } from "./RescheduleButtons";
@@ -41,15 +46,6 @@ interface Props {
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
-
-const statusStyles: Record<
-  LeadStatus,
-  { label: string; className: string }
-> = {
-  new: { label: "New", className: "bg-upcoming text-foreground/70" },
-  interested: { label: "Interested", className: "bg-ok-tint text-ok" },
-  negotiation: { label: "Negotiation", className: "bg-today-tint text-today" },
-};
 
 const urgencyBanner = {
   overdue: {
@@ -90,9 +86,22 @@ export function LeadDetailSheet({
   if (!lead) return null;
 
   const loading = pending !== null;
-  const whatsappMsg = `Hi ${lead.name}, this is regarding your property requirement${lead.requirement ? ` for ${lead.requirement}` : ""}.`;
-  const status = getLeadStatus(lead);
-  const tag = statusStyles[status];
+  const requirement = displayRequirement(lead);
+  const budget = displayBudget(lead);
+  const plotSize =
+    formatMeasureRange(
+      lead.plotSizeMin ?? null,
+      lead.plotSizeMax ?? null,
+      lead.plotSizeUnit ?? null,
+    ) ?? lead.plotSize;
+  const area = formatMeasureRange(
+    lead.areaMin ?? null,
+    lead.areaMax ?? null,
+    lead.areaMin != null || lead.areaMax != null ? "sq-ft" : null,
+  );
+  const size = [plotSize, area].filter(Boolean).join(" · ");
+  const whatsappMsg = `Hi ${lead.name}, this is regarding your property requirement${requirement ? ` for ${requirement}` : ""}.`;
+  const tag = leadStatusOption(getLeadStatus(lead));
   const urgency = getLeadUrgency(lead);
   const banner = urgencyBanner[urgency];
   const followUp = formatFollowUpDateTime(lead.followUpDate);
@@ -161,6 +170,16 @@ export function LeadDetailSheet({
               >
                 {tag.label}
               </span>
+              {leadTemperatureOption(lead.temperature) && (
+                <span
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    leadTemperatureOption(lead.temperature)?.className,
+                  )}
+                >
+                  {leadTemperatureOption(lead.temperature)?.label}
+                </span>
+              )}
               {lead.followUpDone && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-ok-tint px-2.5 py-0.5 text-[10px] font-semibold text-ok">
                   <Check size={11} strokeWidth={2.5} />
@@ -219,13 +238,11 @@ export function LeadDetailSheet({
                     )}
                     {followUp.date}
                   </p>
-                  <p className="mt-0.5 text-[13px] font-medium text-primary">
-                    {new Date(lead.followUpDate).toLocaleTimeString("en-IN", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </p>
+                  {followUp.time && (
+                    <p className="mt-0.5 text-[13px] font-medium text-primary">
+                      {followUp.time}
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="mt-0.5 text-sm text-muted">Not scheduled</p>
@@ -238,9 +255,10 @@ export function LeadDetailSheet({
           <DetailTile
             icon={Tag}
             label="Requirement"
-            value={lead.requirement}
+            value={requirement}
           />
-          <DetailTile icon={Wallet} label="Budget" value={lead.budget} />
+          <DetailTile icon={Wallet} label="Budget" value={budget} />
+          <DetailTile icon={MapPin} label="Size" value={size || null} />
           <DetailTile
             icon={MapPin}
             label="Location"
@@ -257,15 +275,30 @@ export function LeadDetailSheet({
           )}
         </div>
 
-        {lead.notes && (
-          <div className="rounded-xl border border-border/80 bg-background px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              <NotebookPen size={12} />
-              Notes
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-primary">
-              {lead.notes}
-            </p>
+        {(lead.notes || lead.remarks) && (
+          <div className="grid gap-2.5">
+            {lead.notes && (
+              <div className="rounded-xl border border-border/80 bg-background px-3.5 py-3">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                  <NotebookPen size={12} />
+                  Notes
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-primary">
+                  {lead.notes}
+                </p>
+              </div>
+            )}
+            {lead.remarks && (
+              <div className="rounded-xl border border-border/80 bg-background px-3.5 py-3">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                  <NotebookPen size={12} />
+                  Remarks
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-primary">
+                  {lead.remarks}
+                </p>
+              </div>
+            )}
           </div>
         )}
 

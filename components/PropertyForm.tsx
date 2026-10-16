@@ -8,9 +8,9 @@ import { PriceField } from "@/components/PriceField";
 import {
   BUILDER_FLOOR_TYPES,
   OWNERSHIP_OPTIONS,
-  POSTED_AS_OPTIONS,
   PROPERTY_AVAILABILITY_OPTIONS,
   PROPERTY_CATEGORIES,
+  STATE_OPTIONS,
   TENANT_OPTIONS,
   amenityOptions,
   isLandType,
@@ -101,6 +101,7 @@ type StepField =
   | "shopLocation"
   | "plotType"
   | "storageType"
+  | "state"
   | "city"
   | "locality"
   | "location"
@@ -131,6 +132,7 @@ const emptyDraft = (): ListingDraft => ({
   bookingAmount: "",
   industryType: "",
   hospitalityType: "",
+  qualityRating: "",
   plotType: "",
   storageType: "",
   minWorkstations: "",
@@ -151,6 +153,7 @@ const emptyDraft = (): ListingDraft => ({
   annualRentIncrement: "",
   leasedTo: "",
   dgUpsIncluded: false,
+  state: "",
   city: "",
   locality: "",
   subLocality: "",
@@ -340,8 +343,9 @@ function locatedSummary(input: {
   subLocality: string;
   locality: string;
   city: string;
+  state: string;
 }) {
-  const parts = [input.society, input.houseNumber, input.subLocality, input.locality, input.city]
+  const parts = [input.society, input.houseNumber, input.subLocality, input.locality, input.city, input.state]
     .map((part) => part.trim())
     .filter(Boolean);
   return parts.filter((part, index) => !parts.slice(0, index).some((prev) => samePlace(prev, part))).join(", ");
@@ -402,6 +406,7 @@ function fromInitial(initial?: Partial<PropertyFormData>): ListingDraft {
     bookingAmount: text(initial?.bookingAmount),
     industryType: text(initial?.industryType),
     hospitalityType: text(initial?.hospitalityType),
+    qualityRating: text(initial?.qualityRating),
     plotType: text(initial?.plotType),
     storageType: text(initial?.storageType),
     minWorkstations: text(initial?.minWorkstations),
@@ -422,6 +427,7 @@ function fromInitial(initial?: Partial<PropertyFormData>): ListingDraft {
     annualRentIncrement: text(initial?.annualRentIncrement),
     leasedTo: text(initial?.leasedTo),
     dgUpsIncluded: Boolean(initial?.dgUpsIncluded),
+    state: text(initial?.state),
     city: text(initial?.city),
     locality: text(initial?.locality),
     subLocality: text(initial?.subLocality),
@@ -447,7 +453,7 @@ function fromInitial(initial?: Partial<PropertyFormData>): ListingDraft {
     openParking: text(initial?.openParking),
     waterSource: text(initial?.waterSource),
     ownership: text(initial?.ownership),
-    postedAs: initial?.postedAs || "broker",
+    postedAs: "broker",
     negotiable: Boolean(initial?.negotiable),
     allInclusive: Boolean(initial?.allInclusive),
     priceDetails: text(initial?.priceDetails),
@@ -544,6 +550,7 @@ export function PropertyForm({
       field === "shopLocation" ||
       field === "plotType" ||
       field === "storageType" ||
+      field === "state" ||
       field === "city" ||
       field === "locality" ||
       field === "location" ||
@@ -598,6 +605,7 @@ export function PropertyForm({
       bookingAmount: "",
       industryType: "",
       hospitalityType: "",
+      qualityRating: "",
       plotType: "",
       storageType: "",
       minWorkstations: "",
@@ -644,7 +652,10 @@ export function PropertyForm({
         clearRetailShop(next);
       }
       if (propertyType !== "industry") next.industryType = "";
-      if (propertyType !== "hospitality") next.hospitalityType = "";
+      if (propertyType !== "hospitality") {
+        next.hospitalityType = "";
+        next.qualityRating = "";
+      }
       if (propertyType !== "plot-land") {
         if (current.plotType === "commercial-land") clearCommercialLandLease(next);
         next.plotType = "";
@@ -756,6 +767,7 @@ export function PropertyForm({
       }
     }
     if (target === 2) {
+      if (!current.state.trim()) errors.state = "State is required";
       if (!current.city.trim()) errors.city = "City is required";
       if (!current.locality.trim()) errors.locality = "Locality is required";
     }
@@ -843,6 +855,7 @@ export function PropertyForm({
       shopLocation: "Shop location",
       plotType: "Plot / land type",
       storageType: "Storage type",
+      state: "State",
       city: "City",
       locality: "Locality",
       location: "Location",
@@ -1010,27 +1023,58 @@ export function PropertyForm({
     }
   };
 
-  const applyPlace = (place: PlaceHit, focus: "city" | "locality") => {
-    setPin({ lat: place.lat, lon: place.lon });
+  const setState = (state: string) => {
     setForm((current) => {
-      const city = place.city || (focus === "city" ? place.name : current.city);
-      const pickedLocality = place.locality || (focus === "locality" ? place.name : "");
-      const locality =
-        focus === "locality"
-          ? pickedLocality || current.locality
-          : pickedLocality && !samePlace(pickedLocality, city)
-            ? pickedLocality
-            : current.locality;
+      if (samePlace(state, current.state)) return { ...current, state };
       return {
         ...current,
-        city,
-        locality,
-        subLocality:
-          place.subLocality && !samePlace(place.subLocality, locality) && !samePlace(place.subLocality, city)
-            ? place.subLocality
-            : current.subLocality,
+        state,
+        city: "",
+        locality: "",
+        subLocality: "",
+        society: "",
       };
     });
+    clearError("state");
+  };
+
+  const applyPlace = (place: PlaceHit, focus: "city" | "locality" | "society") => {
+    setPin({ lat: place.lat, lon: place.lon });
+    setForm((current) => {
+      const listedState = STATE_OPTIONS.find((option) => samePlace(option.id, place.state));
+      const state = listedState?.id || current.state;
+      const city = place.city || (focus === "city" ? place.name : current.city);
+      const cityChanged = focus === "city" && !samePlace(city, current.city);
+      const pickedLocality = place.locality || (focus === "locality" ? place.name : "");
+      const locality =
+        focus === "locality" || focus === "society"
+          ? pickedLocality && !samePlace(pickedLocality, city)
+            ? pickedLocality
+            : current.locality
+          : pickedLocality && !samePlace(pickedLocality, city)
+            ? pickedLocality
+            : cityChanged
+              ? ""
+              : current.locality;
+      const society = focus === "society" ? place.name : cityChanged ? "" : current.society;
+      return {
+        ...current,
+        state,
+        city,
+        locality,
+        society,
+        subLocality:
+          cityChanged
+            ? ""
+            : place.subLocality &&
+                !samePlace(place.subLocality, locality) &&
+                !samePlace(place.subLocality, city) &&
+                !samePlace(place.subLocality, society)
+              ? place.subLocality
+              : current.subLocality,
+      };
+    });
+    clearError("state");
     clearError("city");
     clearError("locality");
   };
@@ -1041,16 +1085,21 @@ export function PropertyForm({
       const res = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lon}`);
       if (!res.ok) return;
       const data = (await res.json()) as {
+        state?: string;
         city?: string;
         locality?: string;
         subLocality?: string;
       };
       setForm((current) => ({
         ...current,
+        state:
+          STATE_OPTIONS.find((option) => samePlace(option.id, data.state || ""))?.id ||
+          current.state,
         city: data.city || current.city,
         locality: data.locality || current.locality,
         subLocality: data.subLocality || current.subLocality,
       }));
+      if (data.state) clearError("state");
       clearError("city");
       if (data.locality) clearError("locality");
     } catch {
@@ -1201,7 +1250,13 @@ export function PropertyForm({
             clearError("shopLocation");
           }}
           onIndustryType={(value) => update("industryType", value)}
-          onHospitalityType={(value) => update("hospitalityType", value)}
+          onHospitalityType={(value) => {
+            setForm((current) => ({
+              ...current,
+              hospitalityType: value,
+              qualityRating: value === "Hotel" ? current.qualityRating : "",
+            }));
+          }}
           onPlotType={(value) => {
             setForm((current) => {
               const next = { ...current, plotType: value };
@@ -1216,11 +1271,24 @@ export function PropertyForm({
 
       {step === 2 && (
         <>
+          <SelectField
+            label="State *"
+            value={form.state}
+            options={
+              form.state && !STATE_OPTIONS.some((option) => option.id === form.state)
+                ? [{ id: form.state, label: form.state }, ...STATE_OPTIONS]
+                : STATE_OPTIONS
+            }
+            placeholder="Select a state"
+            error={fieldErrors.state}
+            onChange={setState}
+          />
           <PlaceSearch
             label="City *"
             value={form.city}
             kind="city"
-            placeholder="Search a city"
+            near={form.state}
+            placeholder={form.state ? `Search in ${form.state}` : "Search a city"}
             error={fieldErrors.city}
             onChange={(value) => update("city", value)}
             onSelect={(place) => applyPlace(place, "city")}
@@ -1242,7 +1310,9 @@ export function PropertyForm({
             label="Locality *"
             value={form.locality}
             kind="place"
-            near={form.city}
+            near={[form.city, form.state].filter((part, index, parts) =>
+              part.trim() && !parts.slice(0, index).some((prev) => samePlace(prev, part)),
+            ).join(", ")}
             placeholder={form.city ? `Search in ${form.city}` : "Search a locality"}
             error={fieldErrors.locality}
             onChange={(value) => update("locality", value)}
@@ -1253,11 +1323,23 @@ export function PropertyForm({
             value={form.subLocality}
             onChange={(value) => update("subLocality", value)}
           />
-          <Field
+          <PlaceSearch
             label="Apartment / Society"
             value={form.society}
+            kind="society"
+            near={[form.city, form.state].filter((part, index, parts) =>
+              part.trim() && !parts.slice(0, index).some((prev) => samePlace(prev, part)),
+            ).join(", ")}
+            placeholder={
+              form.city ? `Search apartments in ${form.city}` : "Search an apartment or society"
+            }
+            hint={
+              form.city
+                ? `Suggestions are based on ${form.city}.`
+                : "Choose a city to get apartment and society suggestions."
+            }
             onChange={(value) => update("society", value)}
-            placeholder="Opera Chandigarh Enclave"
+            onSelect={(place) => applyPlace(place, "society")}
           />
           <Field
             label="House No. (Optional)"
@@ -1478,13 +1560,10 @@ export function PropertyForm({
               placeholder="Select ownership"
             />
           )}
-          <SelectField
-            label="Posted as"
-            value={form.postedAs}
-            onChange={(value) => update("postedAs", value)}
-            options={POSTED_AS_OPTIONS}
-            placeholder="Select"
-          />
+          <div>
+            <p className="mb-2 text-[13px] font-medium text-foreground">Posted as</p>
+            <p className={cn(fieldClass, "bg-surface text-foreground")}>Broker</p>
+          </div>
           <SelectField
             label="Availability"
             value={form.availability}

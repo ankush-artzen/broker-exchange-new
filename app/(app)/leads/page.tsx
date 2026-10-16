@@ -11,21 +11,19 @@ import { LeadDetailSheet } from "@/components/LeadDetailSheet";
 import { AddButton, AppPage } from "@/components/AppPage";
 import { ListSkeleton } from "@/components/Loader";
 import { ListPagination } from "@/components/ListPagination";
+import { LeadListControls } from "@/components/LeadListControls";
 import { OwnerFilter } from "@/components/OwnerFilter";
 import { usePagination } from "@/hooks/usePagination";
 import {
-  cn,
-  matchesLeadFilter,
-  type LeadFilter,
-} from "@/lib/utils";
+  emptyLeadListQuery,
+  hasLeadFilters,
+  matchesLeadQuery,
+  sortLeads,
+  sortLeadsGroupedByOwner,
+  type LeadListQuery,
+  type LeadSort,
+} from "@/lib/lead-filters";
 import { User } from "lucide-react";
-
-const filters: { id: LeadFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "due-today", label: "Due today" },
-  { id: "new", label: "New" },
-  { id: "negotiation", label: "Negotiation" },
-];
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -38,7 +36,8 @@ export default function LeadsPage() {
   const [nameQuery, setNameQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Lead | null>(null);
-  const [filter, setFilter] = useState<LeadFilter>("all");
+  const [query, setQuery] = useState<LeadListQuery>(emptyLeadListQuery);
+  const [sort, setSort] = useState<LeadSort>("follow-up");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,28 +72,49 @@ export default function LeadsPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [leads]);
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const needle = nameQuery.toLowerCase();
-    const matched = leads.filter((lead) => {
-      const statusOk = matchesLeadFilter(lead, filter);
+    return leads.filter((lead) => {
       const ownerOk = !ownerId || lead.userId === ownerId;
       const nameOk =
         Boolean(ownerId) ||
         !needle ||
         lead.name.toLowerCase().includes(needle) ||
         (lead.ownerName || "").toLowerCase().includes(needle);
-      return statusOk && ownerOk && nameOk;
+      return ownerOk && nameOk;
     });
-    if (!isSuperAdmin) return matched;
-    return [...matched].sort(
-      (a, b) =>
-        (a.ownerName || "").localeCompare(b.ownerName || "") ||
-        a.name.localeCompare(b.name),
-    );
-  }, [leads, filter, ownerId, nameQuery, isSuperAdmin]);
+  }, [leads, ownerId, nameQuery]);
+
+  const locations = useMemo(() => {
+    const values = new Set<string>();
+    for (const lead of leads) {
+      const areas = lead.locations?.length
+        ? lead.locations
+        : lead.location
+          ? [lead.location]
+          : [];
+      for (const area of areas) {
+        const location = area.trim();
+        if (location) values.add(location);
+      }
+    }
+    return [...values].sort((a, b) => a.localeCompare(b));
+  }, [leads]);
+
+  const filtered = useMemo(() => {
+    const matched = searched.filter((lead) => matchesLeadQuery(lead, query));
+    return isSuperAdmin
+      ? sortLeadsGroupedByOwner(matched, sort)
+      : sortLeads(matched, sort);
+  }, [searched, query, sort, isSuperAdmin]);
+
+  const filtersActive = hasLeadFilters(query) || Boolean(nameQuery) || Boolean(ownerId);
 
   const { page, setPage, totalPages, paginatedItems, pageSize, total } =
-    usePagination(filtered, `${filter}:${ownerId}:${nameQuery}`);
+    usePagination(
+      filtered,
+      `${JSON.stringify(query)}:${sort}:${ownerId}:${nameQuery}`,
+    );
 
   return (
     <AppPage
@@ -102,9 +122,11 @@ export default function LeadsPage() {
       subtitle={
         loading
           ? "Loading…"
-          : isSuperAdmin
+          : isSuperAdmin && !filtersActive
             ? "Each user's leads. Edit or delete, without adding new ones."
-            : `${leads.length} ${leads.length === 1 ? "lead" : "leads"}`
+            : filtered.length === leads.length
+              ? `${leads.length} ${leads.length === 1 ? "lead" : "leads"}`
+              : `${filtered.length} of ${leads.length} leads`
       }
       action={
         staff ? undefined : (
@@ -136,23 +158,15 @@ export default function LeadsPage() {
           />
         </label>
       )}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {filters.map((chip) => (
-          <button
-            key={chip.id}
-            type="button"
-            onClick={() => setFilter(chip.id)}
-            className={cn(
-              "shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-colors",
-              filter === chip.id
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-surface text-muted",
-            )}
-          >
-            {chip.label}
-          </button>
-        ))}
-      </div>
+      <LeadListControls
+        leads={searched}
+        query={query}
+        sort={sort}
+        locations={locations}
+        loading={loading}
+        onQueryChange={setQuery}
+        onSortChange={setSort}
+      />
 
       {loading ? (
         <ListSkeleton count={4} />

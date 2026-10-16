@@ -53,5 +53,6 @@ export async function GET(request: NextRequest) {
     city,
     locality,
     subLocality,
+    state: addr?.state || "",
   });
 }

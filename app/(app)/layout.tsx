@@ -10,7 +10,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       <AccessProvider>
         <div className="flex min-h-screen bg-background">
           <SidebarNav />
-          <div className="mx-auto flex min-h-screen w-full max-w-lg flex-1 flex-col md:mx-0 md:max-w-none">
+          <div className="mx-auto flex min-h-screen w-full min-w-0 max-w-lg flex-1 flex-col md:mx-0 md:max-w-none">
             <main className="flex-1 pb-24 md:pb-8">
               <CrmRedirect>{children}</CrmRedirect>
             </main>

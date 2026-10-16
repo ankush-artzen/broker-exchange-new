@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 import { isAdmin, leadScope } from "@/lib/access";
 import { getAuthUser, unauthorized } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { buildLeadCreateData, normalizeTemperature } from "@/lib/lead-filters";
+import {
+  requirementErrorMessage,
+  requirementFieldErrors,
+} from "@/lib/lead-requirements";
 import { ownerNames, serializeLead } from "@/lib/records";
 import { parseFollowUpMoment } from "@/lib/utils";
 
@@ -42,46 +47,45 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const {
-      name,
-      phone,
-      requirement,
-      location,
-      budget,
-      source,
-      notes,
-      followUpDate,
-      status,
-    } = body;
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
 
-    if (!name?.trim() || !phone?.trim()) {
+    if (!name || !phone) {
       return Response.json(
         { error: "Name and phone are required" },
         { status: 400 },
       );
     }
 
+    const fields = buildLeadCreateData(body);
+    if (body.explicitStructured === true) {
+      const message = requirementErrorMessage(
+        requirementFieldErrors(fields, true),
+      );
+      if (message) {
+        return Response.json({ error: message }, { status: 400 });
+      }
+    }
     const lead = await prisma.lead.create({
       data: {
         userId: user.id,
-        name: name.trim(),
-        phone: phone.trim(),
-        requirement: requirement?.trim() || null,
-        location: location?.trim() || null,
-        budget: budget?.trim() || null,
-        source: source?.trim() || null,
-        notes: notes?.trim() || null,
-        followUpDate: followUpDate ? parseFollowUpMoment(followUpDate) : null,
-        status: status?.trim() || "new",
+        name,
+        phone,
+        ...fields,
+        source: typeof body.source === "string" ? body.source.trim() || null : null,
+        notes: typeof body.notes === "string" ? body.notes.trim() || null : null,
+        remarks:
+          typeof body.remarks === "string" ? body.remarks.trim() || null : null,
+        temperature: normalizeTemperature(
+          typeof body.temperature === "string" ? body.temperature : null,
+        ),
+        followUpDate: body.followUpDate
+          ? parseFollowUpMoment(body.followUpDate)
+          : null,
       },
     });
 
-    return Response.json({
-      ...lead,
-      followUpDate: lead.followUpDate?.toISOString() ?? null,
-      createdAt: lead.createdAt.toISOString(),
-      updatedAt: lead.updatedAt.toISOString(),
-    });
+    return Response.json(serializeLead(lead, false));
   } catch (error) {
     console.error("create lead error:", error);
     return Response.json({ error: "Failed to create lead" }, { status: 500 });

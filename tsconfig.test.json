@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": ".test-dist",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": [
+    "lib/lead-filters.test.ts",
+    "lib/lead-ai.test.ts",
+    "lib/lead-requirements.test.ts",
+    "lib/lead-filters.ts",
+    "lib/price.ts",
+    "lib/utils.ts",
+    "scripts/normalize-leads.ts"
+  ]
+}

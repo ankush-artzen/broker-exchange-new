@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { amountInWords } from "@/lib/price";
 import {
+  APARTMENT_BHK_OPTIONS,
   RENT_AGE_OPTIONS,
   RENT_BALCONY_OPTIONS,
   RENT_FURNISHING_OPTIONS,
   RENT_TENANT_OPTIONS,
   YES_NO_OPTIONS,
 } from "@/lib/constants/property";
+import { cn } from "@/lib/utils";
 import { AreaMeasureField } from "@/components/property-form/area";
 import {
   Choices,
@@ -16,6 +18,7 @@ import {
   MultiChoices,
   PropertyFloorSelect,
   RoomCount,
+  fieldClass,
 } from "@/components/property-form/fields";
 import { PriceOptionFields } from "@/components/property-form/price-options";
 import { formatRent, rentDigits } from "@/components/property-form/helpers";
@@ -37,6 +40,24 @@ export function RentProfile({
 }) {
   const [moreRent, setMoreRent] = useState(Boolean(form.deposit.trim() || form.maintenance.trim()));
   const words = amountInWords(form.price);
+  const apartmentRent = form.propertyType === "flat";
+  const presetApartment = APARTMENT_BHK_OPTIONS.some(
+    (option) => option.id !== "other" && option.id === form.configuration,
+  );
+  const otherBhk = /^\d+ BHK$/.test(form.configuration) && !presetApartment;
+  const [otherApartment, setOtherApartment] = useState(otherBhk);
+  const apartmentValue = presetApartment ? form.configuration : otherApartment || otherBhk ? "other" : "";
+
+  const chooseApartment = (value: string) => {
+    if (value === "other") {
+      setOtherApartment(true);
+      if (presetApartment) onChange("configuration", "");
+      return;
+    }
+    setOtherApartment(false);
+    onChange("configuration", value);
+    onBedrooms(value.replace(" BHK", ""));
+  };
 
   const toggleTenant = (id: string) => {
     const selected = form.preferredTenants.includes(id);
@@ -52,6 +73,34 @@ export function RentProfile({
 
   return (
     <>
+      {apartmentRent && (
+        <div>
+          <Choices
+            label="Your apartment is a"
+            value={apartmentValue}
+            options={APARTMENT_BHK_OPTIONS}
+            onChange={chooseApartment}
+          />
+          {(otherApartment || otherBhk) && (
+            <input
+              type="text"
+              inputMode="numeric"
+              value={otherBhk ? form.configuration.replace(" BHK", "") : ""}
+              placeholder="BHK"
+              aria-label="Other BHK"
+              onChange={(e) => {
+                const count = e.target.value.replace(/[^\d]/g, "");
+                if (count === "3" || count === "4" || count === "5" || count === "6") {
+                  setOtherApartment(false);
+                }
+                onChange("configuration", count ? `${count} BHK` : "");
+                if (count) onBedrooms(count);
+              }}
+              className={cn(fieldClass, "mt-2")}
+            />
+          )}
+        </div>
+      )}
       <div data-field-error={areaError ? "true" : undefined}>
         <SectionMessage
           title="Add Area Details"

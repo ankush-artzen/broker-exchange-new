@@ -44,14 +44,60 @@ model Lead {
   user         User      @relation(fields: [userId], references: [id])
   name         String
   phone        String
-  requirement  String?
-  location     String?
-  budget       String?
-  source       String?
-  notes        String?
-  followUpDate DateTime?
-  followUpDone Boolean   @default(false)
-  status       String    @default("new")
+  requirement        String?
+  location           String?
+  /// Display label such as "80L - 1Cr". Numeric range lives in budgetMin/budgetMax.
+  budget             String?
+  budgetMin          Float?
+  budgetMax          Float?
+  /// buy | rent
+  intent             String?
+  /// residential | commercial
+  category           String?
+  /// First selected type. Same ids as property listings. Kept for older filters.
+  propertyType       String?
+  /// Multi-select property type ids. Properties stay single-select.
+  propertyTypes      String[]  @default([])
+  /// First selected BHK. 1 | 2 | 3 | 4+
+  bhk                String?
+  bhks               String[]  @default([])
+  /// 1 to 3 area names. `location` keeps the same areas joined for search.
+  locations          String[]  @default([])
+  /// ready | under-construction | any
+  constructionStatus String?
+  /// hot | warm | cold
+  temperature        String?
+  /// Formatted size such as "200–300 Sq. Yard". Empty when the unit was not given.
+  plotSize           String?
+  plotSizeMin        Float?
+  plotSizeMax        Float?
+  /// sq-yd | marla | kanal | sq-ft
+  plotSizeUnit       String?
+  /// Commercial area in square feet.
+  areaMin            Float?
+  areaMax            Float?
+  areaUnit           String?
+  /// furnished | semi | unfurnished
+  furnishing         String?
+  /// low | mid | high | any
+  floorPreference    String?
+  facing             String?
+  /// required | covered | open | not-required
+  parking            String?
+  /// lift | security | power-backup
+  amenities          String[]  @default([])
+  /// self-use | investment
+  purpose            String?
+  /// yes | no
+  homeLoan           String?
+  /// immediately | 3-months | 6-months | 1-year-plus
+  possessionTimeline String?
+  source             String?
+  notes              String?
+  remarks            String?
+  followUpDate       DateTime?
+  followUpDone       Boolean   @default(false)
+  status             String    @default("new")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

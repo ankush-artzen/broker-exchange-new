@@ -66,26 +66,46 @@ export const PROPERTY_CATEGORIES = [
 ] as const;
 
 export const RESIDENTIAL_PROPERTY_TYPES = [
-  { id: "flat", label: "Flat/Apartment" },
-  { id: "house", label: "Independent House/Villa" },
+  { id: "flat", label: "Flat / Apartment" },
   { id: "builder-floor", label: "Builder Floor" },
-  { id: "plot", label: "Plot/Land" },
-  { id: "studio", label: "1RK/Studio" },
-  { id: "farmserviced-apartment", label: "Serviced Apartment" },
+  { id: "house", label: "Independent House / Kothi / Villa" },
+  { id: "plot", label: "Plot / Land" },
+  { id: "studio", label: "1 RK / Studio Apartment" },
+  { id: "serviced-apartment", label: "Serviced Apartment" },
+  { id: "penthouse", label: "Penthouse" },
   { id: "farmhouse", label: "Farmhouse" },
- 
   { id: "other", label: "Other" },
 ] as const;
 
 export const COMMERCIAL_PROPERTY_TYPES = [
-  { id: "office", label: "Office" },
-  { id: "retail", label: "Retail" },
-  { id: "plot-land", label: "Plot / Land" },
-  { id: "storage", label: "Storage" },
-  { id: "industry", label: "Industry" },
-  { id: "hospitality", label: "Hospitality" },
+  { id: "office", label: "Office Space" },
+  { id: "retail", label: "Shop / Showroom" },
+  { id: "sco", label: "SCO / SCF / Booth" },
+  { id: "plot-land", label: "Commercial Plot / Land" },
+  { id: "storage", label: "Warehouse / Godown" },
+  { id: "industry", label: "Industrial (Factory / Shed)" },
+  { id: "hospitality", label: "Hospitality (Hotel / Guest House)" },
   { id: "other", label: "Other" },
 ] as const;
+
+/** Older ids kept so saved listings and leads still resolve to the current option. */
+export const PROPERTY_TYPE_ALIASES: Record<string, string> = {
+  villa: "house",
+  kothi: "house",
+  "independent-house": "house",
+  "farmserviced-apartment": "serviced-apartment",
+  serviced: "serviced-apartment",
+  shop: "retail",
+  showroom: "retail",
+  godown: "storage",
+  warehouse: "storage",
+  industrial: "industry",
+  factory: "industry",
+  hotel: "hospitality",
+  "guest-house": "hospitality",
+  "commercial-plot": "plot-land",
+  "commercial-land": "plot-land",
+};
 
 export const OFFICE_TYPES = [
   { id: "ready-to-move", label: "Ready to move office space" },
@@ -147,6 +167,48 @@ export const HOSPITALITY_TYPES = [
 
 ] as const;
 
+export const STATE_OPTIONS = [
+  { id: "Andhra Pradesh", label: "Andhra Pradesh" },
+  { id: "Arunachal Pradesh", label: "Arunachal Pradesh" },
+  { id: "Assam", label: "Assam" },
+  { id: "Bihar", label: "Bihar" },
+  { id: "Chhattisgarh", label: "Chhattisgarh" },
+  { id: "Goa", label: "Goa" },
+  { id: "Gujarat", label: "Gujarat" },
+  { id: "Haryana", label: "Haryana" },
+  { id: "Himachal Pradesh", label: "Himachal Pradesh" },
+  { id: "Jharkhand", label: "Jharkhand" },
+  { id: "Karnataka", label: "Karnataka" },
+  { id: "Kerala", label: "Kerala" },
+  { id: "Madhya Pradesh", label: "Madhya Pradesh" },
+  { id: "Maharashtra", label: "Maharashtra" },
+  { id: "Manipur", label: "Manipur" },
+  { id: "Meghalaya", label: "Meghalaya" },
+  { id: "Mizoram", label: "Mizoram" },
+  { id: "Nagaland", label: "Nagaland" },
+  { id: "Odisha", label: "Odisha" },
+  { id: "Punjab", label: "Punjab" },
+  { id: "Rajasthan", label: "Rajasthan" },
+  { id: "Sikkim", label: "Sikkim" },
+  { id: "Tamil Nadu", label: "Tamil Nadu" },
+  { id: "Telangana", label: "Telangana" },
+  { id: "Tripura", label: "Tripura" },
+  { id: "Uttar Pradesh", label: "Uttar Pradesh" },
+  { id: "Uttarakhand", label: "Uttarakhand" },
+  { id: "West Bengal", label: "West Bengal" },
+] as const;
+
+export const QUALITY_RATING_OPTIONS = [
+  { id: "no-rating", label: "No Rating" },
+  { id: "1-star", label: "1 Star" },
+  { id: "2-star", label: "2 Star" },
+  { id: "3-star", label: "3 Star" },
+  { id: "4-star", label: "4 Star" },
+  { id: "5-star", label: "5 Star" },
+  { id: "6-star", label: "6 Star" },
+  { id: "7-star", label: "7 Star" },
+] as const;
+
 export const PRESENCE_OPTIONS = [
   { id: "available", label: "Available" },
   { id: "not-available", label: "Not Available" },
@@ -206,8 +268,8 @@ export const ADDITIONAL_ROOM_OPTIONS = [
 
 export const FURNISHING_OPTIONS = [
   { id: "furnished", label: "Furnished" },
-  { id: "semi", label: "Semi-furnished" },
-  { id: "unfurnished", label: "Un-furnished" },
+  { id: "semi", label: "Semi-Furnished" },
+  { id: "unfurnished", label: "Unfurnished" },
 ] as const;
 
 export const POSSESSION_OPTIONS = [
@@ -286,8 +348,8 @@ export const RENT_TENANT_OPTIONS = [
 
 export const RENT_FURNISHING_OPTIONS = [
   { id: "furnished", label: "Furnished" },
-  { id: "semi", label: "Semi-furnished" },
-  { id: "unfurnished", label: "Un-furnished" },
+  { id: "semi", label: "Semi-Furnished" },
+  { id: "unfurnished", label: "Unfurnished" },
 ] as const;
 
 export const RENT_BALCONY_OPTIONS = [
@@ -365,9 +427,9 @@ export const OWNERSHIP_OPTIONS = [
 ] as const;
 
 export const POSTED_AS_OPTIONS = [
-  { id: "owner", label: "Owner" },
+  // { id: "owner", label: "Owner" },
   { id: "broker", label: "Broker" },
-  { id: "builder", label: "Builder" },
+  // { id: "builder", label: "Builder" },
 ] as const;
 
 export const TENANT_OPTIONS = [
@@ -426,9 +488,13 @@ const FLOOR_NUMBER_TYPES = new Set([
   "builder-floor",
   "studio",
   "serviced",
+  "serviced-apartment",
+  "farmserviced-apartment",
+  "penthouse",
   "office",
   "shop",
   "retail",
+  "sco",
   "hospitality",
 ]);
 
@@ -440,21 +506,29 @@ export function optionLabel(
   return options.find((option) => option.id === id)?.label ?? id;
 }
 
+export function canonicalPropertyTypeId(propertyType?: string | null) {
+  const trimmed = propertyType?.trim().toLowerCase();
+  if (!trimmed) return "";
+  return PROPERTY_TYPE_ALIASES[trimmed] ?? trimmed;
+}
+
 export function propertyTypeLabel(
   category?: string | null,
   propertyType?: string | null,
 ) {
   if (!propertyType) return "";
+  const id = canonicalPropertyTypeId(propertyType);
   const preferred =
     category === "commercial"
       ? COMMERCIAL_PROPERTY_TYPES
       : RESIDENTIAL_PROPERTY_TYPES;
   return (
-    preferred.find((option) => option.id === propertyType)?.label ??
+    preferred.find((option) => option.id === id)?.label ??
     [...RESIDENTIAL_PROPERTY_TYPES, ...COMMERCIAL_PROPERTY_TYPES].find(
-      (option) => option.id === propertyType,
+      (option) => option.id === id,
     )?.label ??
     LEGACY_COMMERCIAL_TYPE_LABELS[propertyType] ??
+    LEGACY_COMMERCIAL_TYPE_LABELS[id] ??
     propertyType
   );
 }

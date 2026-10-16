@@ -53,12 +53,13 @@ export function LocationPicker({
   const skipSearchRef = useRef(false);
 
   useEffect(() => {
-    if (!initialized.current && value.trim()) {
-      initialized.current = true;
-      setManualText(value);
-      setQuery(value);
-      setManualConfirmed(true);
-    }
+    const next = value.trim();
+    if (!next) return;
+    initialized.current = true;
+    setManualText(next);
+    setQuery(next);
+    setManualConfirmed(true);
+    skipSearchRef.current = true;
   }, [value]);
 
   const reverseGeocode = useCallback(

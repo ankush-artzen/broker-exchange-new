@@ -17,6 +17,7 @@ interface Props {
   variant?: "default" | "add";
   className?: string;
   error?: string;
+  invalid?: boolean;
 }
 
 export function PriceField({
@@ -26,6 +27,7 @@ export function PriceField({
   variant = "default",
   className,
   error,
+  invalid = false,
 }: Props) {
   const [amount, setAmount] = useState("");
   const [unit, setUnit] = useState<PriceUnit>("lakh");
@@ -60,7 +62,7 @@ export function PriceField({
       : "w-[9.5rem] shrink-0 rounded-xl border border-zinc-200 px-2.5 py-2.5 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100";
 
   return (
-    <div className={className} data-field-error={error ? "true" : undefined}>
+    <div className={className} data-field-error={error || invalid ? "true" : undefined}>
       <label className={labelClass}>{label}</label>
       <div className="flex gap-2">
         <input
@@ -71,12 +73,12 @@ export function PriceField({
           value={amount}
           onChange={(e) => update(e.target.value, unit)}
           placeholder="e.g. 50"
-          className={cn(inputClass, error && fieldErrorBorder)}
+          className={cn(inputClass, (error || invalid) && fieldErrorBorder)}
         />
         <select
           value={unit}
           onChange={(e) => update(amount, e.target.value as PriceUnit)}
-          className={cn(selectClass, error && fieldErrorBorder)}
+          className={cn(selectClass, (error || invalid) && fieldErrorBorder)}
         >
           {priceUnits.map((option) => (
             <option key={option.id} value={option.id}>

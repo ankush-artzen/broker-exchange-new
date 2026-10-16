@@ -1,7 +1,7 @@
 import {
   PROPERTY_AREA_UNITS,
   type PropertyAreaUnit,
-} from "@/lib/constants/property";
+} from "./constants/property";
 
 export type AreaUnit = PropertyAreaUnit;
 
@@ -50,6 +50,30 @@ export function formatArea(amount: string, unit: AreaUnit): string {
   const unitLabel =
     PROPERTY_AREA_UNITS.find((u) => u.id === unit)?.label ?? unit;
   return `${trimmed} ${unitLabel}`;
+}
+
+export function normalizePlotSize(value?: string | null): string | null {
+  const text = value?.trim() ?? "";
+  if (!text || !hasExplicitAreaUnit(text)) return null;
+  const parsed = parseArea(text);
+  const amount = Number(parsed.amount);
+  if (!parsed.amount || !Number.isFinite(amount) || amount <= 0) return null;
+  return formatArea(parsed.amount, parsed.unit);
+}
+
+export function hasExplicitAreaUnit(value: string): boolean {
+  const cleaned = value.trim().toLowerCase();
+  if (!cleaned) return false;
+  if (
+    /sq\.?\s*ft|sqft|square feet|square foot|sq\.?\s*yd|sqyd|square yards|square yard|sq\.?\s*m|sqm|square meters|square metre|square meter|acres|acre|kanal|marla|gaj/.test(
+      cleaned,
+    )
+  ) {
+    return true;
+  }
+  return PROPERTY_AREA_UNITS.some((unit) =>
+    cleaned.includes(unit.label.toLowerCase()),
+  );
 }
 
 export function parseArea(value: string): { amount: string; unit: AreaUnit } {

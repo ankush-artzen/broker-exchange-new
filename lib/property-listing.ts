@@ -24,6 +24,8 @@ import {
   SHOP_WASHROOM_OPTIONS,
   PARKING_TYPE_OPTIONS,
   STORAGE_TYPES,
+  HOSPITALITY_TYPES,
+  QUALITY_RATING_OPTIONS,
   PANTRY_TYPES,
   PRESENCE_OPTIONS,
   amenityLabel,
@@ -47,6 +49,8 @@ const LISTING_STRING_KEYS = [
   "entranceWidth",
   "ceilingHeight",
   "bookingAmount",
+  "hospitalityType",
+  "qualityRating",
   "plotType",
   "storageType",
   "minWorkstations",
@@ -66,6 +70,7 @@ const LISTING_STRING_KEYS = [
   "leaseTenure",
   "annualRentIncrement",
   "leasedTo",
+  "state",
   "city",
   "locality",
   "subLocality",
@@ -281,6 +286,9 @@ export function listingDetailRows(property: Property) {
   if (property.propertyType === "storage") {
     push("Storage type", optionLabel(STORAGE_TYPES, property.storageType));
   }
+  if (property.propertyType === "hospitality") {
+    push("Hospitality type", optionLabel(HOSPITALITY_TYPES, property.hospitalityType));
+  }
   if (property.propertyType === "office") {
     push("Office type", optionLabel(OFFICE_TYPES, property.officeType));
     push("Min. workstations", property.minWorkstations);
@@ -315,6 +323,7 @@ export function listingDetailRows(property: Property) {
       push("Leased to", property.leasedTo);
     }
   }
+  push("State", property.state);
   push("City", property.city);
   push("Locality", property.locality);
   push("Sub locality", property.subLocality);
@@ -361,6 +370,9 @@ export function listingDetailRows(property: Property) {
   push("Furnishing", optionLabel(FURNISHING_OPTIONS, property.furnishing));
   push("Floor", formatFloor(property));
   push("Possession", optionLabel(POSSESSION_OPTIONS, property.possession));
+  if (property.hospitalityType === "Hotel") {
+    push("Quality rating", optionLabel(QUALITY_RATING_OPTIONS, property.qualityRating));
+  }
   push(
     "Age of property",
     optionLabel(
@@ -391,6 +403,7 @@ export function listingDetailRows(property: Property) {
       [property.plotLength, property.plotBreadth].filter(Boolean).join(" × "),
     );
   }
+
   push("Floors allowed", property.floorsAllowed);
   push("Boundary wall", optionLabel(YES_NO_OPTIONS, property.boundaryWall));
   push("Open sides", property.openSides);
@@ -410,6 +423,7 @@ export function listingDetailRows(property: Property) {
   push("Security deposit", property.deposit);
   push("Available from", property.availableFrom);
   if (property.preferredTenants?.length) {
+
     push(
       "Willing to rent out to",
       property.preferredTenants
@@ -439,12 +453,14 @@ export function listingDetailRows(property: Property) {
           : "Electricity & water",
       "Excluded",
     );
+
   }
   push("Brokers can contact", optionLabel(YES_NO_OPTIONS, property.brokerContact));
   if (property.negotiable) push("Negotiable", true);
   if (property.amenities?.length) {
     push("Amenities", property.amenities.map((id) => amenityLabel(id)).join(", "));
   }
+
 
   return rows;
 }

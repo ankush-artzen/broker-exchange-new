@@ -9,6 +9,7 @@ import { Spinner } from "@/components/Loader";
 export type PlaceHit = {
   label: string;
   name: string;
+  state: string;
   city: string;
   locality: string;
   subLocality: string;
@@ -23,7 +24,8 @@ interface Props {
   onSelect: (place: PlaceHit) => void;
   placeholder?: string;
   error?: string;
-  kind?: "city" | "place";
+  hint?: string;
+  kind?: "city" | "place" | "state" | "society";
   near?: string;
 }
 
@@ -34,6 +36,7 @@ export function PlaceSearch({
   onSelect,
   placeholder,
   error,
+  hint,
   kind = "place",
   near,
 }: Props) {
@@ -63,7 +66,8 @@ export function PlaceSearch({
     }
 
     const trimmed = query.trim();
-    if (!open || trimmed.length < 3) {
+    const societyBrowse = kind === "society" && Boolean(near?.trim());
+    if (!societyBrowse && (!open || trimmed.length < 3)) {
       setResults([]);
       setSearching(false);
       return;
@@ -73,8 +77,9 @@ export function PlaceSearch({
     const timer = window.setTimeout(async () => {
       setSearching(true);
       try {
-        const params = new URLSearchParams({ q: trimmed, kind });
-        if (near?.trim() && kind !== "city") params.set("near", near.trim());
+        const params = new URLSearchParams({ kind });
+        if (trimmed) params.set("q", trimmed);
+        if (near?.trim() && kind !== "state") params.set("near", near.trim());
         const res = await fetch(`/api/geocode/search?${params}`, {
           signal: controller.signal,
         });
@@ -86,7 +91,7 @@ export function PlaceSearch({
       } finally {
         if (!controller.signal.aborted) setSearching(false);
       }
-    }, 600);
+    }, societyBrowse && trimmed.length === 0 ? 0 : 600);
 
     return () => {
       window.clearTimeout(timer);
@@ -95,7 +100,14 @@ export function PlaceSearch({
   }, [query, open, kind, near]);
 
   const choose = (place: PlaceHit) => {
-    const next = kind === "city" ? place.city || place.name : place.locality || place.name;
+    const next =
+      kind === "city"
+        ? place.city || place.name
+        : kind === "state"
+          ? place.state || place.name
+          : kind === "society"
+            ? place.name
+            : place.locality || place.name;
     skipSearch.current = true;
     setQuery(next);
     setOpen(false);
@@ -133,8 +145,14 @@ export function PlaceSearch({
           />
         )}
       </div>
-      {open && results.length > 0 && (
-        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-surface py-1 shadow-lg">
+      {hint && !error && <p className="mt-1.5 text-[12px] text-muted">{hint}</p>}
+      {kind === "society" && searching && results.length === 0 && (
+        <p className="mt-2 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-muted">
+          Finding apartments…
+        </p>
+      )}
+      {open && kind !== "society" && results.length > 0 && (
+        <ul className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-surface py-1 shadow-lg">
           {results.map((place, index) => (
             <li key={`${place.lat}-${place.lon}-${place.label}-${index}`}>
               <button
@@ -147,6 +165,25 @@ export function PlaceSearch({
                   <span className="block text-sm font-medium text-foreground">
                     {place.name}
                   </span>
+                  <span className="block truncate text-[12px] text-muted">{place.label}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {kind === "society" && results.length > 0 && (
+        <ul className="mt-2 max-h-64 overflow-auto rounded-xl border border-border bg-background py-1">
+          {results.map((place, index) => (
+            <li key={`${place.lat}-${place.lon}-${place.label}-${index}`}>
+              <button
+                type="button"
+                onClick={() => choose(place)}
+                className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-surface"
+              >
+                <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground">{place.name}</span>
                   <span className="block truncate text-[12px] text-muted">{place.label}</span>
                 </span>
               </button>

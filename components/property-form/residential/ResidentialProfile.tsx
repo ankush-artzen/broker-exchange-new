@@ -72,7 +72,7 @@ export function ResidentialProfile({
 
   return (
     <>
-      {apartmentSale && (
+      {/* {apartmentSale && (
         <div>
           <Choices
             label="Your apartment is a"
@@ -99,7 +99,7 @@ export function ResidentialProfile({
             />
           )}
         </div>
-      )}
+      )} */}
       <AreaFields
         carpetArea={form.carpetArea}
         plotArea={form.plotArea}

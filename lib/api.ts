@@ -195,14 +195,37 @@ export const api = {
     });
   },
 
-  transcribe(file: File, language: string) {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("language", language);
-    return request<{ transcript: string; languageCode: string | null }>(
-      "/api/ai/transcribe",
-      { method: "POST", body: form },
-    );
+  suggestLeadRemarks(data: {
+    name?: string | null;
+    phone?: string | null;
+    intent?: string | null;
+    category?: string | null;
+    propertyType?: string | null;
+    propertyTypes?: string[] | null;
+    bhk?: string | null;
+    bhks?: string[] | null;
+    location?: string | null;
+    locations?: string[] | null;
+    budget?: string | null;
+    plotSize?: string | null;
+    constructionStatus?: string | null;
+    furnishing?: string | null;
+    floorPreference?: string | null;
+    facing?: string | null;
+    parking?: string | null;
+    amenities?: string[] | null;
+    purpose?: string | null;
+    homeLoan?: string | null;
+    possessionTimeline?: string | null;
+    temperature?: string | null;
+    followUpDate?: string | null;
+    notes?: string | null;
+    status?: string | null;
+  }) {
+    return request<{ remarks: string }>("/api/ai/lead-remarks", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   uploadPhotos(files: File[]) {

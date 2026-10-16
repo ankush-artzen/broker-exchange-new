@@ -254,64 +254,6 @@ export function isDueForFollowUp(lead: {
   return urgency === "overdue" || urgency === "due";
 }
 
-export type LeadStatus = "new" | "interested" | "negotiation";
-
-export type LeadFilter = "all" | "due-today" | "new" | "negotiation";
-
-const leadStatuses: LeadStatus[] = ["new", "interested", "negotiation"];
-
-export function normalizeLeadStatus(value?: string | null): LeadStatus | null {
-  const normalized = value?.toLowerCase().trim();
-  if (normalized && leadStatuses.includes(normalized as LeadStatus)) {
-    return normalized as LeadStatus;
-  }
-  return null;
-}
-
-export function getLeadStatus(lead: {
-  status?: string | null;
-  createdAt: string;
-  notes?: string | null;
-  requirement?: string | null;
-}): LeadStatus {
-  const stored = normalizeLeadStatus(lead.status);
-  if (stored) return stored;
-
-  const text = `${lead.notes ?? ""} ${lead.requirement ?? ""}`;
-  if (/negotiat/i.test(text)) return "negotiation";
-
-  const created = new Date(lead.createdAt).getTime();
-  const weekAgo = Date.now() - 7 * 86400000;
-  if (created > weekAgo) return "new";
-
-  return "interested";
-}
-
-export function matchesLeadFilter(
-  lead: {
-    status?: string | null;
-    createdAt: string;
-    notes?: string | null;
-    requirement?: string | null;
-    followUpDate?: string | null;
-    followUpDone: boolean;
-  },
-  filter: LeadFilter,
-): boolean {
-  switch (filter) {
-    case "all":
-      return true;
-    case "due-today":
-      return isDueForFollowUp(lead);
-    case "new":
-      return getLeadStatus(lead) === "new";
-    case "negotiation":
-      return getLeadStatus(lead) === "negotiation";
-    default:
-      return true;
-  }
-}
-
 export function getLeadUrgency(lead: {
   followUpDate?: string | null;
   followUpDone: boolean;

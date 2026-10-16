@@ -1,3 +1,4 @@
+import { presentLead } from "@/lib/lead-filters";
 import { prisma } from "@/lib/prisma";
 
 type Owned = { user?: { name: string } | null };
@@ -22,13 +23,13 @@ export function serializeLead<
   },
 >(lead: T, includeOwner: boolean) {
   const { user, ...rest } = lead;
-  return {
+  return presentLead({
     ...rest,
     ...(includeOwner && user ? { ownerName: user.name } : {}),
     followUpDate: lead.followUpDate?.toISOString() ?? null,
     createdAt: lead.createdAt.toISOString(),
     updatedAt: lead.updatedAt.toISOString(),
-  };
+  });
 }
 
 export function serializeProperty<

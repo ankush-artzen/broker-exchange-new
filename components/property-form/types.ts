@@ -20,6 +20,7 @@ export type ListingDraft = {
   bookingAmount: string;
   industryType: string;
   hospitalityType: string;
+  qualityRating: string;
   plotType: string;
   storageType: string;
   minWorkstations: string;
@@ -40,6 +41,7 @@ export type ListingDraft = {
   annualRentIncrement: string;
   leasedTo: string;
   dgUpsIncluded: boolean;
+  state: string;
   city: string;
   locality: string;
   subLocality: string;

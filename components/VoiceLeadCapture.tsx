@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LeadFormData, ParsedLead, SpeechLanguage } from "@/lib/types";
+import { extractionFormPatch } from "@/lib/lead-ai";
 import { api } from "@/lib/api";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { formErrorBanner } from "@/lib/form-errors";
@@ -17,7 +18,7 @@ const languages: { code: SpeechLanguage; label: string }[] = [
   { code: "en-IN", label: "English" },
   { code: "hi-IN", label: "हिंदी" },
   { code: "pa-IN", label: "ਪੰਜਾਬੀ" },
-  // { code: "hinglish", label: "Hinglish" },
+  { code: "hinglish", label: "Hinglish" },
 ];
 
 const VOICE_HINT_KEY = "prime-brokers-voice-hint-seen";
@@ -34,7 +35,7 @@ function VoiceHintBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-xl border border-[#bfe0d2] bg-[#eaf3ef] px-3 py-2.5 text-xs leading-relaxed text-ok">
       <span>
-        Tap the mic and speak — Hindi, English, Punjabi, or Hinglish.
+        Tap the mic and speak. Your words show while the mic is on. Tap Turn mic off when you finish.
       </span>
       <button
         type="button"
@@ -72,16 +73,20 @@ export function VoiceLeadCapture({
 
   const {
     transcript,
+    interim,
     listening,
-    transcribing,
+    starting,
+    processing,
     supported,
     error: speechError,
+    notice,
     clearError,
     start,
     stop,
     setTranscript,
   } = useSpeechRecognition(language);
-  const busy = listening || transcribing;
+  const busy = listening || starting || processing;
+  const micSession = listening || starting;
 
   useEffect(() => {
     if (active) {
@@ -126,10 +131,9 @@ export function VoiceLeadCapture({
   const handleParse = async () => {
     setError("");
     clearError();
-    let text = showTypeFallback ? typedText : transcript;
-    if (!showTypeFallback && (listening || transcribing)) {
-      const spoken = await stop();
-      text = spoken;
+    let text = showTypeFallback ? typedText : spokenText();
+    if (!showTypeFallback && (listening || starting || processing)) {
+      text = await stop();
     }
     if (!text.trim()) {
       setError("Please speak or type something first");
@@ -140,15 +144,11 @@ export function VoiceLeadCapture({
     try {
       const result: ParsedLead = await api.parseLead(text, language);
       fillForm({
-        name: result.name ?? "",
-        phone: result.phone ?? "",
-        requirement: result.requirement ?? "",
-        location: result.location ?? "",
-        budget: result.budget ?? "",
-        notes: result.notes ?? "",
-        followUpDate: result.followUpDate ?? "",
+        notes: text,
+        ...extractionFormPatch(result),
+        ...(result.budget ? { budget: result.budget } : {}),
       });
-      setParseStatus("Filled from what you said — check before saving.");
+      setParseStatus("Filled from what you said. Check the form before saving.");
       dismissVoiceHint();
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI parsing failed");
@@ -157,6 +157,28 @@ export function VoiceLeadCapture({
     } finally {
       setParsing(false);
     }
+  };
+
+  const spokenText = () =>
+    [transcript, interim]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(" ");
+
+  const voiceCaption = () => {
+    if (processing) return "Processing…";
+    if (listening) return "Listening…";
+    if (starting) return "Starting microphone…";
+    if (notice) return notice;
+    if (
+      parseStatus.startsWith("Filled") ||
+      parseStatus.startsWith("Couldn't") ||
+      parseStatus.startsWith("Understanding")
+    ) {
+      return parseStatus;
+    }
+    if (transcript.trim() || interim.trim()) return "Speech added";
+    return parseStatus;
   };
 
   const turnMicOff = () => {
@@ -286,63 +308,43 @@ export function VoiceLeadCapture({
           <>
             <button
               type="button"
-              onClick={() => (listening ? turnMicOff() : turnMicOn())}
-              disabled={!supported || transcribing || parsing}
-              className={cn(
-                "relative mx-auto flex h-20 w-20 items-center justify-center rounded-full text-primary-foreground shadow-lg transition-colors disabled:opacity-60",
+              onClick={() => (micSession ? turnMicOff() : turnMicOn())}
+              disabled={!supported || parsing || processing}
+              aria-pressed={listening}
+              aria-busy={starting || processing}
+              aria-label={
                 listening
-                  ? "bg-overdue shadow-overdue/35"
+                  ? "Turn microphone off"
+                  : starting
+                    ? "Cancel microphone start"
+                    : "Turn microphone on"
+              }
+              className={cn(
+                "relative mx-auto flex h-20 w-20 items-center justify-center rounded-full text-white shadow-lg transition-colors disabled:opacity-60",
+                listening
+                  ? "bg-overdue-muted shadow-overdue-muted/40"
                   : "bg-secondary shadow-secondary/35",
               )}
             >
               {listening && (
-                <span className="absolute inset-[-9px] animate-ping rounded-full border-2 border-overdue opacity-40" />
+                <span className="absolute inset-[-9px] animate-ping rounded-full border-2 border-overdue-muted opacity-70" />
               )}
-              <Mic size={28} strokeWidth={1.75} />
+              {listening ? (
+                <MicOff size={28} strokeWidth={1.75} />
+              ) : (
+                <Mic size={28} strokeWidth={1.75} />
+              )}
             </button>
-            <p className="mt-3.5 text-[13px] font-medium text-primary">
-              {transcribing
-                ? "Turning speech into text…"
-                : listening
-                  ? "Listening… tap mic off when you're done"
-                  : transcript
-                    ? "Mic is off"
-                    : parseStatus}
+            <p className="mt-3.5 text-[13px] font-medium text-primary" aria-live="polite">
+              {voiceCaption()}
             </p>
-            {supported && (
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => (listening ? turnMicOff() : turnMicOn())}
-                  disabled={transcribing || parsing}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors",
-                    listening
-                      ? "border-overdue bg-overdue text-white"
-                      : "border-primary bg-primary text-primary-foreground",
-                    (transcribing || parsing) && "opacity-50",
-                  )}
-                >
-                  {listening ? <MicOff size={14} /> : <Mic size={14} />}
-                  {transcribing ? "Working…" : listening ? "Mic off" : "Mic on"}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetVoice}
-                  disabled={parsing || transcribing}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#e4d3b4] bg-surface px-3.5 py-1.5 text-[12.5px] font-semibold text-muted transition-colors disabled:opacity-50"
-                >
-                  <RotateCcw size={14} />
-                  Reset
-                </button>
-              </div>
-            )}
             {!supported && (
               <p className="mt-1 px-1.5 text-xs italic text-[#8a8578]">
                 Voice not supported in this browser
               </p>
             )}
-            {supported && (busy || transcript || editingSpeech) && (
+            {supported &&
+              (listening || starting || processing || transcript || interim || editingSpeech) && (
               <div className="mt-4 text-left">
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-muted">
@@ -357,7 +359,7 @@ export function VoiceLeadCapture({
                       }
                       void (async () => {
                         const text =
-                          listening || transcribing ? await stop() : transcript;
+                          listening || starting || processing ? await stop() : spokenText();
                         setTranscript(text);
                         setEditingSpeech(true);
                       })();
@@ -382,21 +384,66 @@ export function VoiceLeadCapture({
                     className="min-h-[44px] w-full resize-none overflow-hidden rounded-[10px] border border-border bg-surface px-3 py-2.5 text-left text-sm leading-relaxed text-primary outline-none focus:border-primary"
                   />
                 ) : (
-                  <p className="min-h-[44px] rounded-[10px] border border-border bg-surface px-3 py-2.5 text-left text-sm leading-relaxed text-primary">
-                    {transcript || (
+                  <p
+                    className={cn(
+                      "min-h-[44px] rounded-[10px] border bg-surface px-3 py-2.5 text-left text-sm leading-relaxed text-primary",
+                      listening ? "border-overdue" : "border-border",
+                    )}
+                  >
+                    {transcript || interim ? (
+                      <>
+                        {transcript}
+                        {interim && (
+                          <span className="text-[#6f6a60]">
+                            {transcript ? " " : ""}
+                            {interim}
+                          </span>
+                        )}
+                      </>
+                    ) : (
                       <span className="italic text-[#8a8578]">
-                        {transcribing
-                          ? "Transcribing…"
-                          : listening
-                            ? "Your words will appear when you tap mic off…"
-                            : "Your words will appear here…"}
+                        {listening ? "Listening…" : "Your words will appear here…"}
                       </span>
                     )}
                   </p>
                 )}
               </div>
             )}
-            {supported && transcript.trim() && !transcribing && (
+            {supported && (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => (micSession ? turnMicOff() : turnMicOn())}
+                  disabled={parsing || processing}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors",
+                    listening
+                      ? "border-overdue-muted bg-overdue-muted text-white"
+                      : "border-primary bg-primary text-primary-foreground",
+                    (parsing || processing) && "opacity-50",
+                  )}
+                >
+                  {listening ? <MicOff size={14} /> : <Mic size={14} />}
+                  {processing
+                    ? "Processing…"
+                    : listening
+                      ? "Turn mic off"
+                      : starting
+                        ? "Starting…"
+                        : "Mic on"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetVoice}
+                  disabled={parsing}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#e4d3b4] bg-surface px-3.5 py-1.5 text-[12.5px] font-semibold text-muted transition-colors disabled:opacity-50"
+                >
+                  <RotateCcw size={14} />
+                  Reset
+                </button>
+              </div>
+            )}
+            {supported && spokenText().trim() && !processing && (
               <button
                 type="button"
                 disabled={parsing}

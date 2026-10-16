@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { amountInWords } from "@/lib/price";
-import { POSSESSION_OPTIONS, YES_NO_OPTIONS } from "@/lib/constants/property";
+import { POSSESSION_OPTIONS, QUALITY_RATING_OPTIONS, YES_NO_OPTIONS } from "@/lib/constants/property";
 import { cn } from "@/lib/utils";
 import { AreaMeasureField } from "@/components/property-form/area";
-import { Choices, fieldClass } from "@/components/property-form/fields";
+import { Choices, Field, fieldClass } from "@/components/property-form/fields";
 import { PriceOptionFields } from "@/components/property-form/price-options";
 import { formatRent, pricePerSqFt, rentDigits } from "@/components/property-form/helpers";
 import { FieldMessage, SectionMessage } from "@/components/property-form/messages";
@@ -108,6 +108,26 @@ export function CommercialProfile({
         onChange={(value) => onChange("possession", value)}
         columns={2}
       />
+
+      {form.hospitalityType === "Hotel"  || form.hospitalityType ==="Resort" && (
+        <>
+        <Choices
+          label="Quality Rating"
+          value={form.qualityRating}
+            options={QUALITY_RATING_OPTIONS}
+            onChange={(value) => onChange("qualityRating", value)}
+          />
+        </>
+      )}
+
+      {form.intent === "rent" && (
+        <Field
+          label="Available from"
+          value={form.availableFrom}
+          onChange={(value) => onChange("availableFrom", value)}
+          type="date"
+        />
+      )}
 
       <div data-field-error={priceError ? "true" : undefined}>
         <SectionMessage title="Price Details" />

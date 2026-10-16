@@ -33,8 +33,35 @@ export interface Lead {
   requirement?: string | null;
   location?: string | null;
   budget?: string | null;
+  budgetMin?: number | null;
+  budgetMax?: number | null;
+  intent?: string | null;
+  category?: string | null;
+  propertyType?: string | null;
+  propertyTypes?: string[];
+  bhk?: string | null;
+  bhks?: string[];
+  constructionStatus?: string | null;
+  temperature?: string | null;
+  plotSize?: string | null;
+  plotSizeMin?: number | null;
+  plotSizeMax?: number | null;
+  plotSizeUnit?: string | null;
+  areaMin?: number | null;
+  areaMax?: number | null;
+  areaUnit?: string | null;
+  furnishing?: string | null;
+  floorPreference?: string | null;
+  facing?: string | null;
+  parking?: string | null;
+  amenities?: string[];
+  purpose?: string | null;
+  homeLoan?: string | null;
+  possessionTimeline?: string | null;
+  locations?: string[];
   source?: string | null;
   notes?: string | null;
+  remarks?: string | null;
   followUpDate?: string | null;
   followUpDone: boolean;
   status?: string | null;
@@ -67,6 +94,7 @@ export interface Property {
   bookingAmount?: string | null;
   industryType?: string | null;
   hospitalityType?: string | null;
+  qualityRating?: string | null;
   plotType?: string | null;
   storageType?: string | null;
   minWorkstations?: string | null;
@@ -87,6 +115,7 @@ export interface Property {
   annualRentIncrement?: string | null;
   leasedTo?: string | null;
   dgUpsIncluded?: boolean | null;
+  state?: string | null;
   city?: string | null;
   locality?: string | null;
   subLocality?: string | null;
@@ -139,20 +168,47 @@ export interface Property {
 }
 
 export interface ParsedLead {
-  name?: string;
-  phone?: string;
-  requirement?: string;
-  location?: string;
-  budget?: string;
-  source?: string;
-  notes?: string;
-  followUpDate?: string;
+  name?: string | null;
+  phone?: string | null;
+  requirement?: string | null;
+  location?: string | null;
+  locations?: string[] | null;
+  budget?: string | null;
+  intent?: string | null;
+  category?: string | null;
+  propertyType?: string | null;
+  propertyTypes?: string[] | null;
+  bhk?: string | null;
+  bhks?: string[] | null;
+  constructionStatus?: string | null;
+  plotSize?: string | null;
+  plotSizeMin?: number | null;
+  plotSizeMax?: number | null;
+  plotSizeUnit?: string | null;
+  areaMin?: number | null;
+  areaMax?: number | null;
+  furnishing?: string | null;
+  floorPreference?: string | null;
+  facing?: string | null;
+  parking?: string | null;
+  amenities?: string[] | null;
+  purpose?: string | null;
+  homeLoan?: string | null;
+  possessionTimeline?: string | null;
+  source?: string | null;
+  notes?: string | null;
+  followUpDate?: string | null;
 }
 
 export type LeadFormData = Omit<
   Lead,
   "id" | "userId" | "createdAt" | "updatedAt" | "followUpDone"
-> & { followUpDone?: boolean; status?: string | null };
+> & {
+  followUpDone?: boolean;
+  status?: string | null;
+  /** When true, blank requirement dropdowns are stored as blank instead of re-parsed from text. */
+  explicitStructured?: boolean;
+};
 
 export type PropertyFormData = Omit<
   Property,

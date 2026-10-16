@@ -2,13 +2,17 @@
 
 import type { Lead } from "@/lib/types";
 import {
+  displayBudget,
+  displayRequirement,
+  getLeadStatus,
+  leadStatusOption,
+} from "@/lib/lead-filters";
+import {
   cn,
   formatDate,
   getInitials,
-  getLeadStatus,
   getLeadUrgency,
   normalizeIndianPhone,
-  type LeadStatus,
 } from "@/lib/utils";
 import { CallWhatsAppButtons } from "./CallWhatsAppButtons";
 import { TruncatedText } from "./TruncatedText";
@@ -18,15 +22,6 @@ interface Props {
   lead: Lead;
   onClick: () => void;
 }
-
-const statusStyles: Record<
-  LeadStatus,
-  { label: string; className: string }
-> = {
-  new: { label: "New", className: "bg-upcoming text-foreground/70" },
-  interested: { label: "Interested", className: "bg-ok-tint text-ok" },
-  negotiation: { label: "Negotiation", className: "bg-today-tint text-today" },
-};
 
 const urgencyStyles = {
   overdue: {
@@ -53,11 +48,11 @@ const urgencyStyles = {
 
 export function LeadCard({ lead, onClick }: Props) {
   const urgency = getLeadUrgency(lead);
-  const status = getLeadStatus(lead);
-  const tag = statusStyles[status];
+  const tag = leadStatusOption(getLeadStatus(lead));
   const urgencyStyle = urgencyStyles[urgency];
   const whatsappMsg = `Hi ${lead.name}, following up on your property requirement.`;
-  const meta = [lead.requirement, lead.location].filter(Boolean).join(" • ");
+  const meta = [displayRequirement(lead), lead.location].filter(Boolean).join(" • ");
+  const budget = displayBudget(lead);
   const followUpLabel =
     urgencyStyle.label ??
     (lead.followUpDate && !lead.followUpDone
@@ -128,10 +123,10 @@ export function LeadCard({ lead, onClick }: Props) {
                 </TruncatedText>
               )}
 
-              {lead.budget && (
+              {budget && (
                 <p className="mt-2 inline-flex max-w-full items-center gap-1 text-[12px] font-medium text-primary">
                   <Wallet size={12} className="shrink-0 text-muted" />
-                  <span className="truncate">{lead.budget}</span>
+                  <span className="truncate">{budget}</span>
                 </p>
               )}
             </div>
