@@ -11,7 +11,8 @@ import {
   YES_NO_OPTIONS,
 } from "@/lib/constants/property";
 import { cn } from "@/lib/utils";
-import { AreaMeasureField } from "@/components/property-form/area";
+import { ProfileAreaFields } from "@/components/property-form/area";
+import { areaKind, areaRequirementHint } from "@/lib/listing-shape";
 import {
   Choices,
   Field,
@@ -40,6 +41,7 @@ export function RentProfile({
 }) {
   const [moreRent, setMoreRent] = useState(Boolean(form.deposit.trim() || form.maintenance.trim()));
   const words = amountInWords(form.price);
+  const kind = areaKind(form);
   const apartmentRent = form.propertyType === "flat";
   const presetApartment = APARTMENT_BHK_OPTIONS.some(
     (option) => option.id !== "other" && option.id === form.configuration,
@@ -102,25 +104,15 @@ export function RentProfile({
         </div>
       )}
       <div data-field-error={areaError ? "true" : undefined}>
-        <SectionMessage
-          title="Add Area Details"
-          hint="At least one area type is mandatory."
-        />
-        <div className="mt-3 space-y-4">
-          <AreaMeasureField
-            label="Plot Area"
-            value={form.plotArea}
-            onChange={(value) => onChange("plotArea", value)}
-          />
-          <AreaMeasureField
-            label="Carpet Area"
-            value={form.carpetArea}
-            onChange={(value) => onChange("carpetArea", value)}
-          />
-          <AreaMeasureField
-            label="Built-up Area"
-            value={form.builtUpArea}
-            onChange={(value) => onChange("builtUpArea", value)}
+        <SectionMessage title="Add Area Details" hint={areaRequirementHint(form)} />
+        <div className="mt-3">
+          <ProfileAreaFields
+            kind={kind}
+            carpetArea={form.carpetArea}
+            plotArea={form.plotArea}
+            builtUpArea={form.builtUpArea}
+            superBuiltUpArea={form.superBuiltUpArea}
+            onChange={onChange}
           />
         </div>
         {areaError && <FieldMessage>{areaError}</FieldMessage>}
@@ -129,12 +121,14 @@ export function RentProfile({
       <div>
         <SectionMessage title="Add Room Details" />
         <div className="mt-3 space-y-4">
-          <RoomCount
-            label="No. of Bedrooms"
-            value={form.bedrooms}
-            maxChip={4}
-            onChange={onBedrooms}
-          />
+          {form.propertyType !== "studio" && (
+            <RoomCount
+              label="No. of Bedrooms"
+              value={form.bedrooms}
+              maxChip={4}
+              onChange={onBedrooms}
+            />
+          )}
           <RoomCount
             label="No. of Bathrooms"
             value={form.bathrooms}
@@ -160,22 +154,27 @@ export function RentProfile({
       <div>
         <SectionMessage
           title="Floor Details"
-          hint="Total no of floors and your floor details."
+          hint={
+            kind === "built"
+              ? "Total floors in the building."
+              : "Total no of floors and your floor details."
+          }
         />
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className={kind === "built" ? "mt-3" : "mt-3 grid grid-cols-2 gap-2"}>
           <Field
             label="Total floors"
             value={form.totalFloors}
-            onChange={(value) => onChange("totalFloors", value)}
-            type="number"
+            onChange={(value) => onChange("totalFloors", value.replace(/[^\d]/g, ""))}
             inputMode="numeric"
           />
-          <PropertyFloorSelect
-            label="Your floor"
-            value={form.propertyFloor}
-            totalFloors={form.totalFloors}
-            onChange={(value) => onChange("propertyFloor", value)}
-          />
+          {kind !== "built" && (
+            <PropertyFloorSelect
+              label="Your floor"
+              value={form.propertyFloor}
+              totalFloors={form.totalFloors}
+              onChange={(value) => onChange("propertyFloor", value)}
+            />
+          )}
         </div>
       </div>
 
@@ -208,7 +207,6 @@ export function RentProfile({
             value={rentDigits(form.price)}
             onChange={(value) => onChange("price", formatRent(value))}
             placeholder="Expected Rent"
-            type="number"
             inputMode="numeric"
             error={priceError}
           />

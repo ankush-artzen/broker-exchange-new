@@ -18,7 +18,7 @@ const languages: { code: SpeechLanguage; label: string }[] = [
   { code: "en-IN", label: "English" },
   { code: "hi-IN", label: "हिंदी" },
   { code: "pa-IN", label: "ਪੰਜਾਬੀ" },
-  { code: "hinglish", label: "Hinglish" },
+  // { code: "hinglish", label: "Hinglish" },
 ];
 
 const VOICE_HINT_KEY = "prime-brokers-voice-hint-seen";

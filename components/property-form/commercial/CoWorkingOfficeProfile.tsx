@@ -6,9 +6,11 @@ import { amountInWords } from "@/lib/price";
 import { YES_NO_OPTIONS } from "@/lib/constants/property";
 import { cn } from "@/lib/utils";
 import { AreaMeasureField } from "@/components/property-form/area";
+import { pricingBasis } from "@/lib/listing-shape";
 import { Choices, fieldClass } from "@/components/property-form/fields";
 import { PriceOptionFields } from "@/components/property-form/price-options";
-import { formatRent, pricePerSqFt, rentDigits } from "@/components/property-form/helpers";
+import { formatRent, rentDigits } from "@/components/property-form/helpers";
+import { RateReadout } from "@/components/property-form/price-details";
 import { FieldMessage, SectionMessage } from "@/components/property-form/messages";
 import type { ListingChange, ListingDraft } from "@/components/property-form/types";
 
@@ -38,7 +40,7 @@ export function CoWorkingOfficeProfile({
     Boolean(form.annualRentIncrement.trim() || form.leasedTo.trim()),
   );
   const words = amountInWords(form.price);
-  const perFoot = pricePerSqFt(form.price, form.builtUpArea || form.carpetArea || form.plotArea);
+  const basis = pricingBasis(form);
   const washroomCustom =
     form.bathrooms !== "" && !WASHROOM_OPTIONS.some((option) => option.id === form.bathrooms);
   const [otherWashrooms, setOtherWashrooms] = useState(washroomCustom);
@@ -46,22 +48,20 @@ export function CoWorkingOfficeProfile({
   return (
     <>
       <div data-field-error={areaError ? "true" : undefined}>
-        <SectionMessage title="Add Area Details" hint="At least one area type is mandatory." />
+        <SectionMessage
+          title="Add Area Details"
+          hint="Carpet area or super area is required."
+        />
         <div className="mt-3 space-y-3">
-          <AreaMeasureField
-            label="Plot Area"
-            value={form.plotArea}
-            onChange={(value) => onChange("plotArea", value)}
-          />
           <AreaMeasureField
             label="Carpet Area"
             value={form.carpetArea}
             onChange={(value) => onChange("carpetArea", value)}
           />
           <AreaMeasureField
-            label="Built-up Area"
-            value={form.builtUpArea}
-            onChange={(value) => onChange("builtUpArea", value)}
+            label="Super Built-up Area / Super Area"
+            value={form.superBuiltUpArea}
+            onChange={(value) => onChange("superBuiltUpArea", value)}
           />
         </div>
         {areaError ? <FieldMessage>{areaError}</FieldMessage> : null}
@@ -137,9 +137,7 @@ export function CoWorkingOfficeProfile({
               {words ? `₹ ${words}` : "₹ Price in words"}
             </p>
           </div>
-          <p className="flex min-h-11 items-center rounded-xl border border-border bg-background px-3 py-2.5 text-base text-muted">
-            {perFoot || "₹ Price per sq. ft."}
-          </p>
+          <RateReadout price={form.price} area={basis.value} areaLabel={basis.label} />
         </div>
         <PriceOptionFields form={form} onChange={onChange} />
       </div>

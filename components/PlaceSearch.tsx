@@ -45,6 +45,7 @@ export function PlaceSearch({
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const skipSearch = useRef(false);
+  const chosenName = useRef("");
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,6 +64,15 @@ export function PlaceSearch({
     if (skipSearch.current) {
       skipSearch.current = false;
       return;
+    }
+    if (chosenName.current) {
+      const picked = chosenName.current;
+      chosenName.current = "";
+      if (query.trim() === picked) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
     }
 
     const trimmed = query.trim();
@@ -108,12 +118,14 @@ export function PlaceSearch({
           : kind === "society"
             ? place.name
             : place.locality || place.name;
+    const picked = { ...place, name: next || place.name };
+    chosenName.current = picked.name;
     skipSearch.current = true;
-    setQuery(next);
+    setQuery(picked.name);
     setOpen(false);
     setResults([]);
-    onChange(next);
-    onSelect(place);
+    onChange(picked.name);
+    onSelect(picked);
   };
 
   return (

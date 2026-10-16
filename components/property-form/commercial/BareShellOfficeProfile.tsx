@@ -18,7 +18,9 @@ import {
   fieldClass,
 } from "@/components/property-form/fields";
 import { PriceOptionFields } from "@/components/property-form/price-options";
-import { formatRent, pricePerSqFt, rentDigits } from "@/components/property-form/helpers";
+import { formatRent, rentDigits } from "@/components/property-form/helpers";
+import { RateReadout } from "@/components/property-form/price-details";
+import { areaRequirementHint, pricingBasis } from "@/lib/listing-shape";
 import { FieldMessage, SectionMessage } from "@/components/property-form/messages";
 import type { ListingChange, ListingDraft } from "@/components/property-form/types";
 
@@ -27,22 +29,24 @@ export function BareShellOfficeProfile({
   onChange,
   priceError,
   rentError,
+  areaError,
 }: {
   form: ListingDraft;
   onChange: ListingChange;
   priceError?: string;
   rentError?: string;
+  areaError?: string;
 }) {
   const [moreLease, setMoreLease] = useState(
     Boolean(form.leaseTenure.trim() || form.leasedTo.trim()),
   );
   const words = amountInWords(form.price);
-  const perFoot = pricePerSqFt(form.price, form.superBuiltUpArea || form.carpetArea);
+  const basis = pricingBasis(form);
 
   return (
     <>
-      <div>
-        <SectionMessage title="Add Area Details" />
+      <div data-field-error={areaError ? "true" : undefined}>
+        <SectionMessage title="Add Area Details" hint={areaRequirementHint(form)} />
         <div className="mt-3 space-y-3">
           <AreaMeasureField
             label="Super Built-up Area"
@@ -55,6 +59,7 @@ export function BareShellOfficeProfile({
             onChange={(value) => onChange("carpetArea", value)}
           />
         </div>
+        {areaError ? <FieldMessage>{areaError}</FieldMessage> : null}
       </div>
 
       <Choices
@@ -161,9 +166,7 @@ export function BareShellOfficeProfile({
               {words ? `₹ ${words}` : "₹ Price in words"}
             </p>
           </div>
-          <p className="flex min-h-11 items-center rounded-xl border border-border bg-background px-3 py-2.5 text-base text-muted">
-            {perFoot || "₹ Price per sq. ft."}
-          </p>
+          <RateReadout price={form.price} area={basis.value} areaLabel={basis.label} />
         </div>
         <PriceOptionFields form={form} onChange={onChange} />
       </div>

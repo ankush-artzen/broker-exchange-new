@@ -24,6 +24,14 @@ export interface OtpVerifyResult {
   user: User | null;
 }
 
+export interface LeadListResult {
+  leads: Lead[];
+  total: number;
+  locations: string[];
+  owners: { id: string; name: string }[];
+  intentCounts: { buy: number; rent: number };
+}
+
 export interface Lead {
   id: string;
   userId: string;

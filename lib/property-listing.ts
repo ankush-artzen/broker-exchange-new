@@ -7,7 +7,6 @@ import {
   OWNERSHIP_OPTIONS,
   POWER_BACKUP_OPTIONS,
   POSSESSION_OPTIONS,
-  POSTED_AS_OPTIONS,
   BUILDER_FLOOR_AGE_OPTIONS,
   POSSESSION_BY_OPTIONS,
   PLOT_CONSTRUCTION_OPTIONS,
@@ -35,6 +34,7 @@ import {
   propertyFloorLabel,
   propertyTypeLabel,
 } from "@/lib/constants/property";
+import { addressNumberLabel } from "@/lib/listing-shape";
 import type { Property } from "@/lib/types";
 
 const LISTING_STRING_KEYS = [
@@ -162,6 +162,7 @@ export function listingFromBody(body: Record<string, unknown>) {
       : [];
   }
 
+  listing.postedAs = "broker";
   return listing;
 }
 
@@ -328,7 +329,7 @@ export function listingDetailRows(property: Property) {
   push("Locality", property.locality);
   push("Sub locality", property.subLocality);
   push("Apartment / Society", property.society);
-  push("House no.", property.houseNumber);
+  push(addressNumberLabel(property), property.houseNumber);
   push("Carpet area", property.carpetArea);
   push("Plot area", property.plotArea);
   push("Built-up area", property.builtUpArea);
@@ -418,7 +419,6 @@ export function listingDetailRows(property: Property) {
   }
   push("Approved by", property.approvedBy);
   push("Ownership", optionLabel(OWNERSHIP_OPTIONS, property.ownership));
-  push("Posted as", optionLabel(POSTED_AS_OPTIONS, property.postedAs));
   push("Maintenance", property.maintenance);
   push("Security deposit", property.deposit);
   push("Available from", property.availableFrom);

@@ -31,8 +31,8 @@ export function getConfigurationOptions(current?: string | null): string[] {
 
 export const PROPERTY_AVAILABILITY_OPTIONS = [
   { id: "available", label: "Available" },
-  { id: "reserved", label: "Reserved" },
-  { id: "sold", label: "Sold" },
+  { id: "reserved", label: "Reserved / Token Received (Bayana)" },
+  { id: "sold", label: "Sold Out" },
 ] as const;
 
 export type PropertyAvailability =

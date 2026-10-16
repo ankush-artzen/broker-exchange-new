@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { formatArea, fromSqft, parseArea, toSqft, type AreaUnit } from "@/lib/area";
 import { FORM_AREA_UNITS, type FormAreaUnit } from "@/lib/constants/property";
+import type { AreaKind } from "@/lib/listing-shape";
 
 function formAreaUnit(unit: AreaUnit): FormAreaUnit {
   if (unit === "gaj" || unit === "sq-yd") return "gaj";
@@ -92,6 +93,91 @@ export function AreaMeasureField({
           className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted"
         />
       </div>
+    </div>
+  );
+}
+
+export function ProfileAreaFields({
+  kind,
+  carpetArea,
+  plotArea,
+  builtUpArea,
+  superBuiltUpArea,
+  onChange,
+}: {
+  kind: AreaKind;
+  carpetArea: string;
+  plotArea: string;
+  builtUpArea: string;
+  superBuiltUpArea: string;
+  onChange: (
+    field: "carpetArea" | "plotArea" | "builtUpArea" | "superBuiltUpArea",
+    value: string,
+  ) => void;
+}) {
+  if (kind === "plot") {
+    return (
+      <AreaMeasureField
+        label="Plot Area"
+        value={plotArea}
+        onChange={(value) => onChange("plotArea", value)}
+      />
+    );
+  }
+  if (kind === "apartment" || kind === "unit") {
+    return (
+      <div className="space-y-4">
+        <AreaMeasureField
+          label="Carpet Area"
+          value={carpetArea}
+          onChange={(value) => onChange("carpetArea", value)}
+        />
+        <AreaMeasureField
+          label="Super Built-up Area / Super Area"
+          value={superBuiltUpArea}
+          onChange={(value) => onChange("superBuiltUpArea", value)}
+        />
+      </div>
+    );
+  }
+  if (kind === "built") {
+    return (
+      <div className="space-y-4">
+        <AreaMeasureField
+          label="Plot Area"
+          value={plotArea}
+          onChange={(value) => onChange("plotArea", value)}
+        />
+        <AreaMeasureField
+          label="Built-up Area"
+          value={builtUpArea}
+          onChange={(value) => onChange("builtUpArea", value)}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <AreaMeasureField
+        label="Carpet Area"
+        value={carpetArea}
+        onChange={(value) => onChange("carpetArea", value)}
+      />
+      <AreaMeasureField
+        label="Built-up Area"
+        value={builtUpArea}
+        onChange={(value) => onChange("builtUpArea", value)}
+      />
+      <AreaMeasureField
+        label="Plot Area"
+        value={plotArea}
+        onChange={(value) => onChange("plotArea", value)}
+      />
+      <AreaMeasureField
+        label="Super Built-up Area / Super Area"
+        value={superBuiltUpArea}
+        onChange={(value) => onChange("superBuiltUpArea", value)}
+      />
     </div>
   );
 }

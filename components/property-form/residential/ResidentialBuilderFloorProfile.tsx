@@ -9,6 +9,7 @@ import {
   POSSESSION_OPTIONS,
 } from "@/lib/constants/property";
 import { AreaMeasureField, SqYardField } from "@/components/property-form/area";
+import { pricingBasis } from "@/lib/listing-shape";
 import {
   Choices,
   Field,
@@ -17,8 +18,9 @@ import {
   SelectField,
 } from "@/components/property-form/fields";
 import { PriceOptionFields } from "@/components/property-form/price-options";
-import { formatRent, pricePerSqYard, rentDigits } from "@/components/property-form/helpers";
-import { SectionMessage } from "@/components/property-form/messages";
+import { formatRent, rentDigits } from "@/components/property-form/helpers";
+import { RateReadout } from "@/components/property-form/price-details";
+import { FieldMessage, SectionMessage } from "@/components/property-form/messages";
 import type { ListingChange, ListingDraft } from "@/components/property-form/types";
 
 export function ResidentialBuilderFloorProfile({
@@ -26,15 +28,17 @@ export function ResidentialBuilderFloorProfile({
   onChange,
   onPossession,
   priceError,
+  areaError,
 }: {
   form: ListingDraft;
   onChange: ListingChange;
   onPossession: (value: string) => void;
   priceError?: string;
+  areaError?: string;
 }) {
   const underConstruction = form.possession === "under-construction";
   const words = amountInWords(form.price);
-  const perYard = pricePerSqYard(form.price, form.plotArea);
+  const basis = pricingBasis(form);
 
   return (
     <>
@@ -52,7 +56,6 @@ export function ResidentialBuilderFloorProfile({
             label="Total Floors"
             value={form.totalFloors}
             onChange={(value) => onChange("totalFloors", value)}
-            type="number"
             inputMode="numeric"
           />
           <PropertyFloorSelect
@@ -64,8 +67,11 @@ export function ResidentialBuilderFloorProfile({
         </div>
       </div>
 
-      <div>
-        <SectionMessage title="Add Area Details" />
+      <div data-field-error={areaError ? "true" : undefined}>
+        <SectionMessage
+          title="Add Area Details"
+          hint="Plot area or built-up area is required."
+        />
         <div className="mt-3 space-y-4">
           <SqYardField
             label="Plot Area"
@@ -73,21 +79,12 @@ export function ResidentialBuilderFloorProfile({
             onChange={(value) => onChange("plotArea", value)}
           />
           <AreaMeasureField
-            label="Carpet Area"
-            value={form.carpetArea}
-            onChange={(value) => onChange("carpetArea", value)}
-          />
-          <AreaMeasureField
             label="Built-up Area"
             value={form.builtUpArea}
             onChange={(value) => onChange("builtUpArea", value)}
           />
-          <AreaMeasureField
-            label="Super Built-up Area"
-            value={form.superBuiltUpArea}
-            onChange={(value) => onChange("superBuiltUpArea", value)}
-          />
         </div>
+        {areaError ? <FieldMessage>{areaError}</FieldMessage> : null}
       </div>
 
       <div>
@@ -151,19 +148,11 @@ export function ResidentialBuilderFloorProfile({
             value={rentDigits(form.price)}
             onChange={(value) => onChange("price", formatRent(value))}
             placeholder="Expected Price"
-            type="number"
             inputMode="numeric"
             error={priceError}
           />
           {words && <p className="-mt-2 text-[12px] text-muted">{words}</p>}
-          <div>
-            <p className="mb-2 text-[13px] font-medium text-foreground">
-              {underConstruction ? "₹ Price per sq.yards" : "Price per sq. yards"}
-            </p>
-            <p className="rounded-xl border border-border bg-background px-3 py-2.5 text-base text-muted">
-              {perYard || "—"}
-            </p>
-          </div>
+          <RateReadout price={form.price} area={basis.value} areaLabel={basis.label} />
           <PriceOptionFields form={form} onChange={onChange} />
         </div>
       </div>

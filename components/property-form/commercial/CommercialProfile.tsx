@@ -5,10 +5,12 @@ import { CircleAlert } from "lucide-react";
 import { amountInWords } from "@/lib/price";
 import { POSSESSION_OPTIONS, QUALITY_RATING_OPTIONS, YES_NO_OPTIONS } from "@/lib/constants/property";
 import { cn } from "@/lib/utils";
-import { AreaMeasureField } from "@/components/property-form/area";
+import { ProfileAreaFields } from "@/components/property-form/area";
+import { areaKind, areaRequirementHint, pricingBasis } from "@/lib/listing-shape";
 import { Choices, Field, fieldClass } from "@/components/property-form/fields";
 import { PriceOptionFields } from "@/components/property-form/price-options";
-import { formatRent, pricePerSqFt, rentDigits } from "@/components/property-form/helpers";
+import { formatRent, rentDigits } from "@/components/property-form/helpers";
+import { RateReadout } from "@/components/property-form/price-details";
 import { FieldMessage, SectionMessage } from "@/components/property-form/messages";
 import type { ListingChange, ListingDraft } from "@/components/property-form/types";
 
@@ -38,7 +40,8 @@ export function CommercialProfile({
     Boolean(form.annualRentIncrement.trim() || form.leasedTo.trim()),
   );
   const words = amountInWords(form.price);
-  const perFoot = pricePerSqFt(form.price, form.plotArea || form.carpetArea || form.builtUpArea);
+  const kind = areaKind(form);
+  const basis = pricingBasis(form);
   const washroomCustom =
     form.bathrooms !== "" && !WASHROOM_OPTIONS.some((option) => option.id === form.bathrooms);
   const [otherWashrooms, setOtherWashrooms] = useState(washroomCustom);
@@ -46,22 +49,15 @@ export function CommercialProfile({
   return (
     <>
       <div data-field-error={areaError ? "true" : undefined}>
-        <SectionMessage title="Add Area Details" hint="At least one area type is mandatory." />
-        <div className="mt-3 space-y-3">
-          <AreaMeasureField
-            label="Plot Area"
-            value={form.plotArea}
-            onChange={(value) => onChange("plotArea", value)}
-          />
-          <AreaMeasureField
-            label="Carpet Area"
-            value={form.carpetArea}
-            onChange={(value) => onChange("carpetArea", value)}
-          />
-          <AreaMeasureField
-            label="Built-up Area"
-            value={form.builtUpArea}
-            onChange={(value) => onChange("builtUpArea", value)}
+        <SectionMessage title="Add Area Details" hint={areaRequirementHint(form)} />
+        <div className="mt-3">
+          <ProfileAreaFields
+            kind={kind}
+            carpetArea={form.carpetArea}
+            plotArea={form.plotArea}
+            builtUpArea={form.builtUpArea}
+            superBuiltUpArea={form.superBuiltUpArea}
+            onChange={onChange}
           />
         </div>
         {areaError ? <FieldMessage>{areaError}</FieldMessage> : null}
@@ -165,9 +161,7 @@ export function CommercialProfile({
               {words ? `₹ ${words}` : "₹ Price in words"}
             </p>
           </div>
-          <p className="flex min-h-11 items-center rounded-xl border border-border bg-background px-3 py-2.5 text-base text-muted">
-            {perFoot || "₹ Price per sq. ft."}
-          </p>
+          <RateReadout price={form.price} area={basis.value} areaLabel={basis.label} />
         </div>
         <PriceOptionFields form={form} onChange={onChange} />
       </div>

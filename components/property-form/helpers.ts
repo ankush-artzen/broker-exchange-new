@@ -1,4 +1,5 @@
 import { parseArea, toSqft } from "@/lib/area";
+import { boundedSalePriceError } from "@/lib/listing-shape";
 import type { PropertyFormData } from "@/lib/types";
 import type { ListingDraft } from "@/components/property-form/types";
 
@@ -35,8 +36,8 @@ export function areaSummary(
     .join(" · ");
 }
 
-const MIN_SALE_PRICE = 10000;
 const MIN_RENT = 1000;
+const MAX_RENT = 10_000_000;
 
 export function priceNumber(value: string) {
   const digits = value.replace(/[^\d]/g, "");
@@ -60,35 +61,24 @@ export function formatRent(amount: string) {
 }
 
 export function salePriceError(value: string, emptyMessage: string) {
-  const amount = priceNumber(value);
-  if (!amount) return emptyMessage;
-  if (amount < MIN_SALE_PRICE) return "Enter a valid price of at least ₹10,000";
-  return "";
+  return boundedSalePriceError(priceNumber(value), emptyMessage);
 }
 
 export function rentAmountError(value: string, emptyMessage: string) {
   const amount = priceNumber(value);
   if (!amount) return emptyMessage;
   if (amount < MIN_RENT) return "Enter a valid amount of at least ₹1,000";
+  if (amount > MAX_RENT) return "Enter a rent up to ₹1 crore";
   return "";
 }
 
-export function pricePerSqYard(price: string, plotArea: string) {
-  return pricePerUnit(price, plotArea, "sq-yd");
-}
-
 export function pricePerSqFt(price: string, plotArea: string) {
-  return pricePerUnit(price, plotArea, "sq-ft");
-}
-
-function pricePerUnit(price: string, plotArea: string, unit: "sq-ft" | "sq-yd") {
   const amount = Number(price.replace(/[^\d]/g, ""));
   const parsed = parseArea(plotArea);
   if (!amount || !parsed.amount) return "";
   const sqft = toSqft(parsed.amount, parsed.unit);
   if (sqft == null || sqft <= 0) return "";
-  const basis = unit === "sq-yd" ? sqft / 9 : sqft;
-  const per = Math.round(amount / basis);
+  const per = Math.round(amount / sqft);
   if (!per) return "";
   return `₹${per.toLocaleString("en-IN")}`;
 }

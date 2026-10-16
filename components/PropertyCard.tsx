@@ -18,12 +18,12 @@ const statusStyles = {
     stripe: "bg-ok",
   },
   reserved: {
-    label: "Reserved",
+    label: "Reserved (Bayana)",
     className: "bg-today/90 text-white",
     stripe: "bg-today",
   },
   sold: {
-    label: "Sold",
+    label: "Sold Out",
     className: "bg-muted/90 text-white",
     stripe: "bg-muted",
   },

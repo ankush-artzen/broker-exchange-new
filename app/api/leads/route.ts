@@ -1,8 +1,15 @@
 import { NextRequest } from "next/server";
-import { isAdmin, leadScope } from "@/lib/access";
+import { isAdmin, isSuperAdmin, leadScope } from "@/lib/access";
 import { getAuthUser, unauthorized } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { buildLeadCreateData, normalizeTemperature } from "@/lib/lead-filters";
+import {
+  buildLeadCreateData,
+  matchesLeadQuery,
+  normalizeTemperature,
+  sortLeads,
+  sortLeadsGroupedByOwner,
+} from "@/lib/lead-filters";
+import { parseLeadListRequest } from "@/lib/lead-list-params";
 import {
   requirementErrorMessage,
   requirementFieldErrors,
@@ -10,25 +17,87 @@ import {
 import { ownerNames, serializeLead } from "@/lib/records";
 import { parseFollowUpMoment } from "@/lib/utils";
 
+function collectLeadLocations(
+  rows: { location?: string | null; locations?: string[] | null }[],
+): string[] {
+  const values = new Set<string>();
+  for (const lead of rows) {
+    const areas = lead.locations?.length
+      ? lead.locations
+      : lead.location
+        ? [lead.location]
+        : [];
+    for (const area of areas) {
+      const location = area.trim();
+      if (location) values.add(location);
+    }
+  }
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
 export async function GET(request: NextRequest) {
   const user = await getAuthUser(request);
   if (!user) return unauthorized();
 
   try {
+    const parsed = parseLeadListRequest(request.nextUrl.searchParams);
+    const ownerId = isAdmin(user) ? parsed.ownerId : "";
+    const needle = parsed.name.toLowerCase();
+    const superAdmin = isSuperAdmin(user);
     const leads = await prisma.lead.findMany({
       where: leadScope(user),
-      orderBy: { updatedAt: "desc" },
     });
     const names = isAdmin(user)
       ? await ownerNames(leads.map((lead) => lead.userId))
       : null;
 
-    return Response.json(
-      leads.map((lead) => ({
-        ...serializeLead(lead, false),
-        ...(names ? { ownerName: names.get(lead.userId) ?? null } : {}),
-      })),
+    const serialized = leads.map((lead) => ({
+      ...serializeLead(lead, false),
+      ...(names ? { ownerName: names.get(lead.userId) ?? null } : {}),
+    }));
+    const searched = serialized.filter((lead) => {
+      const ownerOk = !ownerId || lead.userId === ownerId;
+      const nameOk =
+        Boolean(ownerId) ||
+        !needle ||
+        lead.name.toLowerCase().includes(needle) ||
+        (lead.ownerName || "").toLowerCase().includes(needle);
+      return ownerOk && nameOk;
+    });
+    const matched = searched.filter((lead) =>
+      matchesLeadQuery(lead, parsed.query),
     );
+    const sorted = superAdmin
+      ? sortLeadsGroupedByOwner(matched, parsed.sort)
+      : sortLeads(matched, parsed.sort);
+    const ownerNamesById = new Map<string, string>();
+    if (superAdmin) {
+      for (const lead of serialized) {
+        if (!ownerNamesById.has(lead.userId)) {
+          ownerNamesById.set(
+            lead.userId,
+            lead.ownerName?.trim() || "Unknown user",
+          );
+        }
+      }
+    }
+
+    return Response.json({
+      leads: sorted,
+      total: serialized.length,
+      locations: collectLeadLocations(serialized),
+      owners: [...ownerNamesById.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      intentCounts: {
+        buy: searched.filter((lead) =>
+          matchesLeadQuery(lead, { ...parsed.query, intents: ["buy"] }),
+        ).length,
+        rent: searched.filter((lead) =>
+          matchesLeadQuery(lead, { ...parsed.query, intents: ["rent"] }),
+        ).length,
+      },
+    });
   } catch (error) {
     console.error("get leads error:", error);
     return Response.json({ error: "Failed to fetch leads" }, { status: 500 });

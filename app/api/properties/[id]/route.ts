@@ -4,6 +4,7 @@ import { isAdmin, propertyOwned } from "@/lib/access";
 import { getAuthUser, unauthorized } from "@/lib/api-auth";
 import { deleteCloudinaryImages } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
+import { listingInputError } from "@/lib/property-input";
 import {
   asRecord,
   listingFromBody,
@@ -54,6 +55,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = (await request.json()) as Record<string, unknown>;
+    const invalid = listingInputError(body);
+    if (invalid) {
+      return Response.json({ error: invalid }, { status: 400 });
+    }
     const data: Prisma.PropertyUpdateInput = {};
 
     if ("title" in body) data.title = optionalText(body.title) ?? "";

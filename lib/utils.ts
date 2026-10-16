@@ -318,8 +318,8 @@ export type PropertyStatus = "available" | "reserved" | "sold";
 
 export const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
   available: "Available",
-  reserved: "Reserved",
-  sold: "Sold",
+  reserved: "Reserved / Token Received (Bayana)",
+  sold: "Sold Out",
 };
 
 export function getPropertyStatus(property: {

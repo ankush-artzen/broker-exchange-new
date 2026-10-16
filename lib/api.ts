@@ -1,6 +1,7 @@
 import type {
   Lead,
   LeadFormData,
+  LeadListResult,
   ParsedLead,
   Property,
   PropertyFormData,
@@ -8,6 +9,12 @@ import type {
   User,
   UserProfileData,
 } from "./types";
+import {
+  emptyLeadListQuery,
+  type LeadListQuery,
+  type LeadSort,
+} from "./lead-filters";
+import { leadListSearchParams } from "./lead-list-search";
 import { isStaffRole } from "./roles";
 import {
   clearStoredUser,
@@ -128,8 +135,21 @@ export const api = {
     });
   },
 
-  getLeads() {
-    return request<Lead[]>("/api/leads");
+  getLeads(params?: {
+    query?: LeadListQuery;
+    sort?: LeadSort;
+    ownerId?: string;
+    name?: string;
+  }) {
+    const search = params
+      ? leadListSearchParams({
+          query: params.query ?? emptyLeadListQuery(),
+          sort: params.sort ?? "follow-up",
+          ownerId: params.ownerId,
+          name: params.name,
+        }).toString()
+      : "";
+    return request<LeadListResult>(search ? `/api/leads?${search}` : "/api/leads");
   },
 
   getLead(id: string) {

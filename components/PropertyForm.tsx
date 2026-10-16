@@ -17,6 +17,13 @@ import {
   showsPropertyFloor,
 } from "@/lib/constants/property";
 import { configurationFromListing, suggestTitle } from "@/lib/property-listing";
+import {
+  MAX_PROPERTY_PHOTOS,
+  addressNumberLabel,
+  hiddenListingPatch,
+  relevantAreaError,
+  showsSocietyField,
+} from "@/lib/listing-shape";
 import { formatMissingFieldsSummary, scrollToFirstFieldError } from "@/lib/form-errors";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -66,6 +73,7 @@ const LocationPickerMap = dynamic(
 );
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const PHOTO_LIMIT = MAX_PROPERTY_PHOTOS;
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const STEPS = [
@@ -88,7 +96,7 @@ const STEP_HINTS = [
   "Choose the listing and property type.",
   "An accurate location helps you connect with the right buyers.",
   "Rooms, area, furnishing, and amenities.",
-  "JPEG, PNG, or WebP. Up to 5 MB each.",
+  "JPEG, PNG, or WebP. Up to 12 photos, 5 MB each.",
   "Set the price, availability, and notes.",
 ];
 
@@ -370,7 +378,12 @@ function readPropertyDraft(): {
     const step = parsed.step;
     const pin = parsed.pin;
     return {
-      form: { ...emptyDraft(), ...parsed.form },
+      form: {
+        ...emptyDraft(),
+        ...parsed.form,
+        ...hiddenListingPatch({ ...emptyDraft(), ...parsed.form }),
+        postedAs: "broker",
+      },
       step: typeof step === "number" && step >= 1 && step <= 5 ? step : 1,
       pin:
         pin && typeof pin.lat === "number" && typeof pin.lon === "number"
@@ -383,7 +396,7 @@ function readPropertyDraft(): {
 }
 
 function fromInitial(initial?: Partial<PropertyFormData>): ListingDraft {
-  return {
+  const draft: ListingDraft = {
     ...emptyDraft(),
     title: text(initial?.title),
     location: text(initial?.location),
@@ -474,6 +487,7 @@ function fromInitial(initial?: Partial<PropertyFormData>): ListingDraft {
     approvedBy: text(initial?.approvedBy),
     amenities: initial?.amenities ?? [],
   };
+  return { ...draft, ...hiddenListingPatch(draft), postedAs: "broker" };
 }
 
 interface Props {
@@ -668,7 +682,13 @@ export function PropertyForm({
         next.configuration = "";
       }
       if (current.category === "residential") {
-        if (current.intent !== "rent" && propertyType !== "studio") next.furnishing = "";
+        if (
+          current.intent !== "rent" &&
+          (propertyType === "plot" || propertyType === "builder-floor")
+        ) {
+          next.furnishing = "";
+        }
+        Object.assign(next, hiddenListingPatch(next));
         return next;
       }
       if (isLandType(propertyType)) {
@@ -694,6 +714,7 @@ export function PropertyForm({
       }
       if (propertyType === "studio") next.bedrooms = "";
       if (!showsPropertyFloor(propertyType)) next.propertyFloor = "";
+      Object.assign(next, hiddenListingPatch(next));
       return next;
     });
     clearError("propertyType");
@@ -778,22 +799,26 @@ export function PropertyForm({
       current.propertyType !== "builder-floor" &&
       current.propertyType !== "plot"
     ) {
-      if (!current.carpetArea.trim() && !current.plotArea.trim() && !current.builtUpArea.trim()) {
-        errors.area = "At least one area type is mandatory.";
-      }
+      const areaError = relevantAreaError(current);
+      if (areaError) errors.area = areaError;
       const rentError = rentAmountError(current.price, "Expected rent is required");
       if (rentError) errors.price = rentError;
     }
     if (target === 3 && (isResidentialBuilderFloor(current) || isResidentialPlot(current))) {
+      const areaError = relevantAreaError(current);
+      if (areaError) errors.area = areaError;
       const priceError = salePriceError(current.price, "Expected price is required");
       if (priceError) errors.price = priceError;
     }
     if (target === 3 && isResidentialSaleProfile(current)) {
+      const areaError = relevantAreaError(current);
+      if (areaError) errors.area = areaError;
       const priceError = salePriceError(current.price, "Please specify the price");
       if (priceError) errors.price = priceError;
     }
     if (target === 3 && isRetailShopMall(current)) {
-      if (!current.carpetArea.trim()) errors.area = "Carpet area is mandatory.";
+      const areaError = relevantAreaError(current);
+      if (areaError) errors.area = areaError;
       const priceError = salePriceError(current.price, "Expected price is required");
       if (priceError) errors.price = priceError;
       if (current.preLeased === "yes") {
@@ -802,6 +827,8 @@ export function PropertyForm({
       }
     }
     if (target === 3 && isCommercialLand(current)) {
+      const areaError = relevantAreaError(current);
+      if (areaError) errors.area = areaError;
       const priceError = salePriceError(current.price, "Expected price is required");
       if (priceError) errors.price = priceError;
       if (current.preLeased === "yes") {
@@ -810,9 +837,8 @@ export function PropertyForm({
       }
     }
     if (target === 3 && isGenericCommercial(current)) {
-      if (!current.carpetArea.trim() && !current.plotArea.trim() && !current.builtUpArea.trim()) {
-        errors.area = "At least one area type is mandatory.";
-      }
+      const areaError = relevantAreaError(current);
+      if (areaError) errors.area = areaError;
       const priceError = salePriceError(current.price, "Expected price is required");
       if (priceError) errors.price = priceError;
       if (current.preLeased === "yes") {
@@ -821,11 +847,8 @@ export function PropertyForm({
       }
     }
     if (target === 3 && isOfficeListing(current)) {
-      if (current.officeType === "co-working") {
-        if (!current.carpetArea.trim() && !current.plotArea.trim() && !current.builtUpArea.trim()) {
-          errors.area = "At least one area type is mandatory.";
-        }
-      }
+      const areaError = relevantAreaError(current);
+      if (areaError) errors.area = areaError;
       const priceError = salePriceError(current.price, "Expected price is required");
       if (priceError) errors.price = priceError;
       if (current.preLeased === "yes") {
@@ -951,15 +974,23 @@ export function PropertyForm({
 
   const handlePhotos = async (files: FileList | null) => {
     if (!files?.length) return;
+    const room = PHOTO_LIMIT - form.photoUrls.length;
+    if (room <= 0) {
+      setError(`You can add up to ${PHOTO_LIMIT} photos.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     const selected = Array.from(files);
     const invalid = selected.filter(
       (file) => !PHOTO_TYPES.has(file.type) || file.size > MAX_PHOTO_BYTES,
     );
-    const accepted = selected.filter(
-      (file) => PHOTO_TYPES.has(file.type) && file.size <= MAX_PHOTO_BYTES && file.size > 0,
-    );
+    const accepted = selected
+      .filter((file) => PHOTO_TYPES.has(file.type) && file.size <= MAX_PHOTO_BYTES && file.size > 0)
+      .slice(0, room);
     if (invalid.length > 0) {
       setError("Use JPEG, PNG, or WebP photos up to 5 MB each.");
+    } else if (selected.length > room) {
+      setError(`You can add up to ${PHOTO_LIMIT} photos. Extra files were skipped.`);
     } else {
       setError("");
     }
@@ -968,7 +999,10 @@ export function PropertyForm({
     setUploading(true);
     try {
       const { urls } = await api.uploadPhotos(accepted);
-      setForm((current) => ({ ...current, photoUrls: [...current.photoUrls, ...urls] }));
+      setForm((current) => ({
+        ...current,
+        photoUrls: [...current.photoUrls, ...urls].slice(0, PHOTO_LIMIT),
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -1000,13 +1034,14 @@ export function PropertyForm({
       }
     }
 
+    const shaped = { ...form, ...hiddenListingPatch(form), postedAs: "broker" };
     const payload: PropertyFormData = {
-      ...form,
-      location: locatedSummary(form) || form.location.trim(),
-      title: form.title.trim() || suggestTitle(form),
-      configuration: configurationFromListing(form) || null,
-      area: areaSummary(form),
-      preferredTenant: form.preferredTenants.join(",") || form.preferredTenant,
+      ...shaped,
+      location: locatedSummary(shaped) || shaped.location.trim(),
+      title: shaped.title.trim() || suggestTitle(shaped),
+      configuration: configurationFromListing(shaped) || null,
+      area: areaSummary(shaped),
+      preferredTenant: shaped.preferredTenants.join(",") || shaped.preferredTenant,
     };
 
     setFieldErrors({});
@@ -1046,17 +1081,20 @@ export function PropertyForm({
       const city = place.city || (focus === "city" ? place.name : current.city);
       const cityChanged = focus === "city" && !samePlace(city, current.city);
       const pickedLocality = place.locality || (focus === "locality" ? place.name : "");
+      const localityName =
+        pickedLocality && !samePlace(pickedLocality, city) ? pickedLocality : "";
       const locality =
-        focus === "locality" || focus === "society"
-          ? pickedLocality && !samePlace(pickedLocality, city)
-            ? pickedLocality
-            : current.locality
-          : pickedLocality && !samePlace(pickedLocality, city)
-            ? pickedLocality
-            : cityChanged
-              ? ""
-              : current.locality;
-      const society = focus === "society" ? place.name : cityChanged ? "" : current.society;
+        focus === "society" && localityName && samePlace(localityName, place.name)
+          ? current.locality
+          : focus === "locality" || focus === "society"
+            ? localityName || current.locality
+            : localityName || (cityChanged ? "" : current.locality);
+      const society =
+        focus === "society"
+          ? place.name.trim() || current.society
+          : cityChanged
+            ? ""
+            : current.society;
       return {
         ...current,
         state,
@@ -1323,28 +1361,35 @@ export function PropertyForm({
             value={form.subLocality}
             onChange={(value) => update("subLocality", value)}
           />
-          <PlaceSearch
-            label="Apartment / Society"
-            value={form.society}
-            kind="society"
-            near={[form.city, form.state].filter((part, index, parts) =>
-              part.trim() && !parts.slice(0, index).some((prev) => samePlace(prev, part)),
-            ).join(", ")}
-            placeholder={
-              form.city ? `Search apartments in ${form.city}` : "Search an apartment or society"
-            }
-            hint={
-              form.city
-                ? `Suggestions are based on ${form.city}.`
-                : "Choose a city to get apartment and society suggestions."
-            }
-            onChange={(value) => update("society", value)}
-            onSelect={(place) => applyPlace(place, "society")}
-          />
+          {showsSocietyField(form) && (
+            <PlaceSearch
+              label="Apartment / Society"
+              value={form.society}
+              kind="society"
+              near={[form.city, form.state].filter((part, index, parts) =>
+                part.trim() && !parts.slice(0, index).some((prev) => samePlace(prev, part)),
+              ).join(", ")}
+              placeholder={
+                form.city ? `Search apartments in ${form.city}` : "Search an apartment or society"
+              }
+              hint={
+                form.city
+                  ? `Type the name or pick a suggestion in ${form.city}. The name you enter is saved.`
+                  : "Choose a city to get apartment and society suggestions."
+              }
+              onChange={(value) => update("society", value)}
+              onSelect={(place) => applyPlace(place, "society")}
+            />
+          )}
           <Field
-            label="House No. (Optional)"
+            label={addressNumberLabel(form)}
             value={form.houseNumber}
             onChange={(value) => update("houseNumber", value)}
+            placeholder={
+              form.propertyType === "plot" || form.propertyType === "plot-land"
+                ? "Plot number"
+                : "House or flat number"
+            }
           />
         </>
       )}
@@ -1372,6 +1417,7 @@ export function PropertyForm({
       {step === 3 && residentialSaleProfile && (
         <ResidentialProfile
           form={form}
+          areaError={fieldErrors.area}
           priceError={fieldErrors.price}
           onBedrooms={(value) => {
             setForm((current) => {
@@ -1392,6 +1438,7 @@ export function PropertyForm({
       {step === 3 && residentialPlot && (
         <ResidentialPlotProfile
           form={form}
+          areaError={fieldErrors.area}
           priceError={fieldErrors.price}
           onChange={update}
           onConstruction={setConstructionDone}
@@ -1401,6 +1448,7 @@ export function PropertyForm({
       {step === 3 && residentialBuilderFloor && (
         <ResidentialBuilderFloorProfile
           form={form}
+          areaError={fieldErrors.area}
           priceError={fieldErrors.price}
           onChange={update}
           onPossession={setBuilderPossession}
@@ -1410,6 +1458,7 @@ export function PropertyForm({
       {step === 3 && officeListing && form.officeType === "bare-shell" && (
         <BareShellOfficeProfile
           form={form}
+          areaError={fieldErrors.area}
           priceError={fieldErrors.price}
           rentError={fieldErrors.currentRent}
           onChange={update}
@@ -1429,6 +1478,7 @@ export function PropertyForm({
       {step === 3 && officeListing && form.officeType !== "bare-shell" && form.officeType !== "co-working" && (
         <OfficeProfile
           form={form}
+          areaError={fieldErrors.area}
           priceError={fieldErrors.price}
           rentError={fieldErrors.currentRent}
           onChange={update}
@@ -1448,6 +1498,7 @@ export function PropertyForm({
       {step === 3 && commercialLand && (
         <CommercialLandProfile
           form={form}
+          areaError={fieldErrors.area}
           priceError={fieldErrors.price}
           rentError={fieldErrors.currentRent}
           onChange={update}
@@ -1473,16 +1524,19 @@ export function PropertyForm({
                 <button
                   type="button"
                   onClick={() => removePhoto(i)}
+                  aria-label="Remove photo"
                   className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1.5 text-xs text-white"
                 >
                   <X size={12} />
                 </button>
               </div>
             ))}
+            {form.photoUrls.length < PHOTO_LIMIT && (
             <button
               type="button"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
+              aria-label="Add photos"
               className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-border bg-background text-muted"
             >
               {uploading ? (
@@ -1491,7 +1545,11 @@ export function PropertyForm({
                 <Plus size={24} />
               )}
             </button>
+            )}
           </div>
+          <p className="mt-2 text-[12px] text-muted">
+            {form.photoUrls.length} / {PHOTO_LIMIT} photos. Remove a photo to replace it.
+          </p>
           <input
             ref={fileRef}
             type="file"
@@ -1560,10 +1618,6 @@ export function PropertyForm({
               placeholder="Select ownership"
             />
           )}
-          <div>
-            <p className="mb-2 text-[13px] font-medium text-foreground">Posted as</p>
-            <p className={cn(fieldClass, "bg-surface text-foreground")}>Broker</p>
-          </div>
           <SelectField
             label="Availability"
             value={form.availability}
@@ -1571,6 +1625,18 @@ export function PropertyForm({
             options={PROPERTY_AVAILABILITY_OPTIONS}
             allowEmpty={false}
           />
+          {(rentListing ||
+            residentialBuilderFloor ||
+            officeListing ||
+            retailShopMall ||
+            genericCommercial) && (
+            <Field
+              label="Maintenance charges"
+              value={form.maintenance}
+              onChange={(value) => update("maintenance", value)}
+              placeholder="Monthly maintenance, if any"
+            />
+          )}
           {!residential && (
             <MultiChoices
               label="Amenities"

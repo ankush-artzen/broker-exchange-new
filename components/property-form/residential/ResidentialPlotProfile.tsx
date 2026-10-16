@@ -15,8 +15,9 @@ import {
   SelectField,
 } from "@/components/property-form/fields";
 import { PriceOptionFields } from "@/components/property-form/price-options";
-import { formatRent, pricePerSqFt, rentDigits } from "@/components/property-form/helpers";
-import { SectionMessage } from "@/components/property-form/messages";
+import { formatRent, rentDigits } from "@/components/property-form/helpers";
+import { RateReadout } from "@/components/property-form/price-details";
+import { FieldMessage, SectionMessage } from "@/components/property-form/messages";
 import type { ListingChange, ListingDraft } from "@/components/property-form/types";
 
 export function ResidentialPlotProfile({
@@ -24,16 +25,17 @@ export function ResidentialPlotProfile({
   onChange,
   onConstruction,
   priceError,
+  areaError,
 }: {
   form: ListingDraft;
   onChange: ListingChange;
   onConstruction: (value: string) => void;
   priceError?: string;
+  areaError?: string;
 }) {
   const built = form.constructionDone === "yes";
   const vacant = form.constructionDone === "no";
   const words = amountInWords(form.price);
-  const perFoot = pricePerSqFt(form.price, form.plotArea);
 
   const toggleConstruction = (id: string) => {
     const selected = form.constructionTypes.includes(id);
@@ -47,8 +49,8 @@ export function ResidentialPlotProfile({
 
   return (
     <>
-      <div>
-        <SectionMessage title="Add Area Details" />
+      <div data-field-error={areaError ? "true" : undefined}>
+        <SectionMessage title="Add Area Details" hint="Plot area is required." />
         <div className="mt-3">
           <SqFtField
             label="Plot Area"
@@ -56,6 +58,7 @@ export function ResidentialPlotProfile({
             onChange={(value) => onChange("plotArea", value)}
           />
         </div>
+        {areaError ? <FieldMessage>{areaError}</FieldMessage> : null}
       </div>
 
       <div>
@@ -83,7 +86,6 @@ export function ResidentialPlotProfile({
             label="No. of floors"
             value={form.floorsAllowed}
             onChange={(value) => onChange("floorsAllowed", value.replace(/[^\d]/g, ""))}
-            type="number"
             inputMode="numeric"
           />
         </div>
@@ -151,19 +153,11 @@ export function ResidentialPlotProfile({
             value={rentDigits(form.price)}
             onChange={(value) => onChange("price", formatRent(value))}
             placeholder="Expected Price"
-            type="number"
             inputMode="numeric"
             error={priceError}
           />
           {words && <p className="-mt-2 text-[12px] text-muted">{words}</p>}
-          <div>
-            <p className="mb-2 text-[13px] font-medium text-foreground">
-              {vacant ? "₹ Price per sq. ft." : "Price per sq. ft."}
-            </p>
-            <p className="rounded-xl border border-border bg-background px-3 py-2.5 text-base text-muted">
-              {perFoot || "—"}
-            </p>
-          </div>
+          <RateReadout price={form.price} area={form.plotArea} areaLabel="Plot Area" />
           <PriceOptionFields form={form} onChange={onChange} />
         </div>
       </div>

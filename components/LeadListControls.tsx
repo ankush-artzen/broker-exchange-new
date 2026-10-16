@@ -7,43 +7,36 @@ import { Modal } from "@/components/Modal";
 import {
   detailedFilterCount,
   emptyLeadListQuery,
-  FOLLOW_UP_FILTERS,
   hasLeadFilters,
   LEAD_BHK_OPTIONS,
   LEAD_CONSTRUCTION_STATUSES,
   LEAD_INTENTS,
   LEAD_PROPERTY_TYPES,
   LEAD_SORTS,
-  LEAD_STATUS_OPTIONS,
-  matchesLeadQuery,
   parseBudgetRange,
   rupeesToPriceInput,
   toggleValue,
   type LeadBhk,
-  type LeadFilterable,
   type LeadIntent,
   type LeadListQuery,
   type LeadSort,
-  type LeadStatus,
 } from "@/lib/lead-filters";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  leads: LeadFilterable[];
   query: LeadListQuery;
   sort: LeadSort;
   locations: string[];
-  loading?: boolean;
+  intentCounts: { buy: number; rent: number } | null;
   onQueryChange: (query: LeadListQuery) => void;
   onSortChange: (sort: LeadSort) => void;
 }
 
 export function LeadListControls({
-  leads,
   query,
   sort,
   locations,
-  loading = false,
+  intentCounts,
   onQueryChange,
   onSortChange,
 }: Props) {
@@ -51,13 +44,10 @@ export function LeadListControls({
   const detailCount = detailedFilterCount(query);
   const filtersActive = hasLeadFilters(query);
 
-  const countFor = (next: LeadListQuery) =>
-    loading ? null : leads.filter((lead) => matchesLeadQuery(lead, next)).length;
-
   return (
     <div className="mb-4 min-w-0 space-y-3">
       <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
-        <ChipGroup>
+        {/* <ChipGroup>
           {FOLLOW_UP_FILTERS.map((chip) => (
             <FilterChip
               key={chip.id}
@@ -72,9 +62,9 @@ export function LeadListControls({
               }
             />
           ))}
-        </ChipGroup>
+        </ChipGroup> */}
         <span className="w-px shrink-0 self-stretch bg-border" aria-hidden />
-        <ChipGroup>
+        {/* <ChipGroup>
           {LEAD_STATUS_OPTIONS.map((chip) => (
             <FilterChip
               key={chip.id}
@@ -95,14 +85,14 @@ export function LeadListControls({
               }
             />
           ))}
-        </ChipGroup>
+        </ChipGroup> */}
         <span className="w-px shrink-0 self-stretch bg-border" aria-hidden />
         <ChipGroup>
           {LEAD_INTENTS.map((chip) => (
             <FilterChip
               key={chip.id}
               label={chip.label}
-              count={countFor({ ...query, intents: [chip.id] })}
+              count={intentCounts ? intentCounts[chip.id] : null}
               pressed={query.intents.includes(chip.id)}
               onClick={() =>
                 onQueryChange({

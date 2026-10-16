@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { isAdmin, propertyScope } from "@/lib/access";
 import { getAuthUser, unauthorized } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { listingInputError } from "@/lib/property-input";
 import {
   listingFromBody,
   optionalText,
@@ -61,6 +62,10 @@ export async function POST(request: NextRequest) {
         { error: "Title, location, and price are required" },
         { status: 400 },
       );
+    }
+    const invalid = listingInputError(body);
+    if (invalid) {
+      return Response.json({ error: invalid }, { status: 400 });
     }
 
     const property = await prisma.property.create({

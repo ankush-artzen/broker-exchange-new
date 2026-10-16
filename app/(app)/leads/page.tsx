@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Lead } from "@/lib/types";
+import type { Lead, LeadListResult } from "@/lib/types";
 import { api } from "@/lib/api";
 import { useAccess } from "@/components/AccessProvider";
 import { isStaffRole } from "@/lib/roles";
@@ -17,20 +17,25 @@ import { usePagination } from "@/hooks/usePagination";
 import {
   emptyLeadListQuery,
   hasLeadFilters,
-  matchesLeadQuery,
-  sortLeads,
-  sortLeadsGroupedByOwner,
   type LeadListQuery,
   type LeadSort,
 } from "@/lib/lead-filters";
 import { User } from "lucide-react";
+
+const emptyResult: LeadListResult = {
+  leads: [],
+  total: 0,
+  locations: [],
+  owners: [],
+  intentCounts: { buy: 0, rent: 0 },
+};
 
 export default function LeadsPage() {
   const router = useRouter();
   const { role } = useAccess();
   const isSuperAdmin = role === "SUPERADMIN";
   const staff = isStaffRole(role);
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [result, setResult] = useState<LeadListResult>(emptyResult);
   const [ownerId, setOwnerId] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [nameQuery, setNameQuery] = useState("");
@@ -38,81 +43,42 @@ export default function LeadsPage() {
   const [selected, setSelected] = useState<Lead | null>(null);
   const [query, setQuery] = useState<LeadListQuery>(emptyLeadListQuery);
   const [sort, setSort] = useState<LeadSort>("follow-up");
+  const [reloadToken, setReloadToken] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.getLeads();
-      setLeads(data);
-    } catch {
-      setLeads([]);
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback(() => {
+    setReloadToken((token) => token + 1);
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    setLoading(true);
+    api
+      .getLeads({ query, sort, ownerId, name: nameQuery })
+      .then((data) => {
+        if (active) setResult(data);
+      })
+      .catch(() => {
+        if (active) setResult(emptyResult);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [query, sort, ownerId, nameQuery, reloadToken]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNameQuery(nameInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [nameInput]);
 
-  const ownersWithLeads = useMemo(() => {
-    const byId = new Map<string, string>();
-    for (const lead of leads) {
-      if (!byId.has(lead.userId)) {
-        byId.set(lead.userId, lead.ownerName?.trim() || "Unknown user");
-      }
-    }
-    return [...byId.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [leads]);
-
-  const searched = useMemo(() => {
-    const needle = nameQuery.toLowerCase();
-    return leads.filter((lead) => {
-      const ownerOk = !ownerId || lead.userId === ownerId;
-      const nameOk =
-        Boolean(ownerId) ||
-        !needle ||
-        lead.name.toLowerCase().includes(needle) ||
-        (lead.ownerName || "").toLowerCase().includes(needle);
-      return ownerOk && nameOk;
-    });
-  }, [leads, ownerId, nameQuery]);
-
-  const locations = useMemo(() => {
-    const values = new Set<string>();
-    for (const lead of leads) {
-      const areas = lead.locations?.length
-        ? lead.locations
-        : lead.location
-          ? [lead.location]
-          : [];
-      for (const area of areas) {
-        const location = area.trim();
-        if (location) values.add(location);
-      }
-    }
-    return [...values].sort((a, b) => a.localeCompare(b));
-  }, [leads]);
-
-  const filtered = useMemo(() => {
-    const matched = searched.filter((lead) => matchesLeadQuery(lead, query));
-    return isSuperAdmin
-      ? sortLeadsGroupedByOwner(matched, sort)
-      : sortLeads(matched, sort);
-  }, [searched, query, sort, isSuperAdmin]);
-
+  const leads = result.leads;
   const filtersActive = hasLeadFilters(query) || Boolean(nameQuery) || Boolean(ownerId);
 
   const { page, setPage, totalPages, paginatedItems, pageSize, total } =
     usePagination(
-      filtered,
+      leads,
       `${JSON.stringify(query)}:${sort}:${ownerId}:${nameQuery}`,
     );
 
@@ -124,9 +90,9 @@ export default function LeadsPage() {
           ? "Loading…"
           : isSuperAdmin && !filtersActive
             ? "Each user's leads. Edit or delete, without adding new ones."
-            : filtered.length === leads.length
-              ? `${leads.length} ${leads.length === 1 ? "lead" : "leads"}`
-              : `${filtered.length} of ${leads.length} leads`
+            : leads.length === result.total
+              ? `${result.total} ${result.total === 1 ? "lead" : "leads"}`
+              : `${leads.length} of ${result.total} leads`
       }
       action={
         staff ? undefined : (
@@ -137,7 +103,7 @@ export default function LeadsPage() {
       {isSuperAdmin && (
         <OwnerFilter
           searchable
-          users={ownersWithLeads}
+          users={result.owners}
           value={ownerId}
           onChange={setOwnerId}
           query={nameInput}
@@ -159,25 +125,24 @@ export default function LeadsPage() {
         </label>
       )}
       <LeadListControls
-        leads={searched}
         query={query}
         sort={sort}
-        locations={locations}
-        loading={loading}
+        locations={result.locations}
+        intentCounts={loading ? null : result.intentCounts}
         onQueryChange={setQuery}
         onSortChange={setSort}
       />
 
       {loading ? (
         <ListSkeleton count={4} />
-      ) : filtered.length === 0 ? (
+      ) : leads.length === 0 ? (
         <div className="rounded-2xl bg-surface px-4 py-9 text-center text-[13.5px] leading-relaxed text-muted">
           <User
             size={36}
             strokeWidth={1.5}
             className="mx-auto mb-3 text-upcoming"
           />
-          {leads.length === 0
+          {result.total === 0
             ? staff
               ? "No leads yet."
               : "No leads yet — tap + Add to create your first one."

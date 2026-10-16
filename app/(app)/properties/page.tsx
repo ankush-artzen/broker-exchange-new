@@ -22,7 +22,7 @@ const filters: { id: PropertyFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "available", label: "Available" },
   { id: "reserved", label: "Reserved" },
-  { id: "sold", label: "Sold" },
+  { id: "sold", label: "Sold Out" },
 ];
 
 export default function PropertiesPage() {

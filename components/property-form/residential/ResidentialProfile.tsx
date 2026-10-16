@@ -19,7 +19,8 @@ import {
   amenityOptions,
 } from "@/lib/constants/property";
 import { cn } from "@/lib/utils";
-import { AreaFields } from "@/components/property-form/area";
+import { ProfileAreaFields } from "@/components/property-form/area";
+import { areaKind, areaRequirementHint, pricingBasis } from "@/lib/listing-shape";
 import {
   Choices,
   CountStepper,
@@ -28,8 +29,9 @@ import {
   SelectField,
   fieldClass,
 } from "@/components/property-form/fields";
-import { formatRent, pricePerSqFt, rentDigits } from "@/components/property-form/helpers";
-import { SectionMessage } from "@/components/property-form/messages";
+import { formatRent, rentDigits } from "@/components/property-form/helpers";
+import { RateReadout } from "@/components/property-form/price-details";
+import { FieldMessage, SectionMessage } from "@/components/property-form/messages";
 import { PriceOptionFields } from "@/components/property-form/price-options";
 import type { ListingChange, ListingDraft } from "@/components/property-form/types";
 
@@ -39,18 +41,19 @@ export function ResidentialProfile({
   onChange,
   onToggleAmenity,
   priceError,
+  areaError,
 }: {
   form: ListingDraft;
   onBedrooms: (value: string) => void;
   onChange: ListingChange;
   onToggleAmenity: (id: string) => void;
   priceError?: string;
+  areaError?: string;
 }) {
   const words = amountInWords(form.price);
-  const perFoot = pricePerSqFt(
-    form.price,
-    form.builtUpArea || form.carpetArea || form.plotArea,
-  );
+  const kind = areaKind(form);
+  const basis = pricingBasis(form);
+  const apartment = kind === "apartment";
   const apartmentSale = form.category === "residential" && form.intent !== "rent" && form.propertyType === "flat";
   const presetApartment = APARTMENT_BHK_OPTIONS.some(
     (option) => option.id !== "other" && option.id === form.configuration,
@@ -100,12 +103,21 @@ export function ResidentialProfile({
           )}
         </div>
       )} */}
-      <AreaFields
-        carpetArea={form.carpetArea}
-        plotArea={form.plotArea}
-        builtUpArea={form.builtUpArea}
-        onChange={onChange}
-      />
+      <div data-field-error={areaError ? "true" : undefined}>
+        <SectionMessage title="Add Area Details" hint={areaRequirementHint(form)} />
+        <div className="mt-3">
+          <ProfileAreaFields
+            kind={kind}
+            carpetArea={form.carpetArea}
+            plotArea={form.plotArea}
+            builtUpArea={form.builtUpArea}
+            superBuiltUpArea={form.superBuiltUpArea}
+            onChange={onChange}
+          />
+        </div>
+        {areaError ? <FieldMessage>{areaError}</FieldMessage> : null}
+      </div>
+      {form.propertyType !== "studio" && (
       <Choices
         label="Bedrooms"
         value={form.bedrooms}
@@ -113,6 +125,7 @@ export function ResidentialProfile({
         onChange={onBedrooms}
         columns={5}
       />
+      )}
       <Choices
         label="Bathrooms"
         value={form.bathrooms}
@@ -130,25 +143,30 @@ export function ResidentialProfile({
       <div>
         <SectionMessage
           title="Floor Details"
-          hint="Total no of floors and your floor details"
+          hint={
+            apartment || kind === "flexible"
+              ? "Total no of floors and your floor details"
+              : "Total floors in the building"
+          }
           className="mb-2"
         />
-        <div className="grid grid-cols-2 gap-2">
+        <div className={apartment || kind === "flexible" ? "grid grid-cols-2 gap-2" : ""}>
           <input
-            type="number"
+            type="text"
             inputMode="numeric"
-            min="0"
             value={form.totalFloors}
             placeholder="Total floors"
-            onChange={(e) => onChange("totalFloors", e.target.value)}
+            onChange={(e) => onChange("totalFloors", e.target.value.replace(/[^\d]/g, ""))}
             className={fieldClass}
           />
-          <PropertyFloorSelect
-            value={form.propertyFloor}
-            totalFloors={form.totalFloors}
-            placeholder="Property on floor"
-            onChange={(value) => onChange("propertyFloor", value)}
-          />
+          {(apartment || kind === "flexible") && (
+            <PropertyFloorSelect
+              value={form.propertyFloor}
+              totalFloors={form.totalFloors}
+              placeholder="Property on floor"
+              onChange={(value) => onChange("propertyFloor", value)}
+            />
+          )}
         </div>
       </div>
       <Choices
@@ -177,14 +195,12 @@ export function ResidentialProfile({
           placeholder="Expected by"
         />
       )}
-      {form.propertyType === "studio" && (
-        <Choices
-          label="Furnishing"
-          value={form.furnishing}
-          options={RENT_FURNISHING_OPTIONS}
-          onChange={(value) => onChange("furnishing", value)}
-        />
-      )}
+      <Choices
+        label="Furnishing"
+        value={form.furnishing}
+        options={RENT_FURNISHING_OPTIONS}
+        onChange={(value) => onChange("furnishing", value)}
+      />
       <Choices
         label="Facing"
         value={form.facing}
@@ -269,9 +285,7 @@ export function ResidentialProfile({
               {words ? `₹ ${words}` : "₹ Price in words"}
             </p>
           </div>
-          <p className="flex min-h-11 items-center rounded-xl border border-border bg-background px-3 py-2.5 text-base text-muted">
-            {perFoot || "₹ Price per sq.ft."}
-          </p>
+          <RateReadout price={form.price} area={basis.value} areaLabel={basis.label} />
         </div>
         <PriceOptionFields form={form} onChange={onChange} />
       </div>
