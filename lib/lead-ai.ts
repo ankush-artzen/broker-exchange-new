@@ -91,10 +91,11 @@ function statedBhks(value: unknown): string[] {
     if (uncertain(item) || /between/i.test(item)) continue;
     const parts = item.split(/\s*(?:,|\/|&|\bor\b|\band\b)\s*/i).filter(Boolean);
     if (parts.length > 1) {
-      const parsed = parts.map((part) => normalizeBhk(part));
-      if (parsed.every(Boolean)) {
-        result.push(...parsed.filter((part): part is string => Boolean(part)));
-      }
+      const parsed = parts.flatMap((part) => {
+        const bhk = normalizeBhk(part);
+        return bhk ? [bhk] : [];
+      });
+      if (parsed.length === parts.length) result.push(...parsed);
       continue;
     }
     const single = normalizeBhk(item);
