@@ -1,98 +1,85 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { Property } from "@/lib/types";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import type { Property, PropertyListResult } from "@/lib/types";
 import { api } from "@/lib/api";
 import { useAccess } from "@/components/AccessProvider";
-import { isStaffRole } from "@/lib/roles";
 import { PropertyCard } from "@/components/PropertyCard";
 import { PropertyDetailSheet } from "@/components/PropertyDetailSheet";
-import { AddButton, AppPage } from "@/components/AppPage";
+import { AppPage } from "@/components/AppPage";
 import { PropertyListSkeleton } from "@/components/Loader";
 import { ListPagination } from "@/components/ListPagination";
 import { OwnerFilter } from "@/components/OwnerFilter";
+import { PropertyListControls } from "@/components/PropertyListControls";
 import { usePagination } from "@/hooks/usePagination";
-import { cn, getPropertyStatus } from "@/lib/utils";
-import { House } from "lucide-react";
+import {
+  detailedPropertyFilterCount,
+  emptyPropertyListQuery,
+  hasPropertyFilters,
+  type PropertyListQuery,
+  type PropertySort,
+} from "@/lib/property-filters";
+import { House, SlidersHorizontal } from "lucide-react";
 
-type PropertyFilter = "all" | "available" | "reserved" | "sold";
-
-const filters: { id: PropertyFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "available", label: "Available" },
-  { id: "reserved", label: "Reserved" },
-  { id: "sold", label: "Sold Out" },
-];
+const emptyResult: PropertyListResult = {
+  properties: [],
+  total: 0,
+  locations: [],
+  owners: [],
+};
 
 export default function PropertiesPage() {
-  const router = useRouter();
   const { role } = useAccess();
   const isSuperAdmin = role === "SUPERADMIN";
-  const staff = isStaffRole(role);
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [result, setResult] = useState<PropertyListResult>(emptyResult);
   const [ownerId, setOwnerId] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [nameQuery, setNameQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Property | null>(null);
-  const [filter, setFilter] = useState<PropertyFilter>("all");
+  const [query, setQuery] = useState<PropertyListQuery>(emptyPropertyListQuery);
+  const [sort, setSort] = useState<PropertySort>("newest");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.getProperties();
-      setProperties(data);
-    } catch {
-      setProperties([]);
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback(() => {
+    setReloadToken((token) => token + 1);
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    setLoading(true);
+    api
+      .getProperties({ query, sort, ownerId, name: nameQuery })
+      .then((data) => {
+        if (active) setResult(data);
+      })
+      .catch(() => {
+        if (active) setResult(emptyResult);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [query, sort, ownerId, nameQuery, reloadToken]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNameQuery(nameInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [nameInput]);
 
-  const ownersWithProperties = useMemo(() => {
-    const byId = new Map<string, string>();
-    for (const property of properties) {
-      if (!byId.has(property.userId)) {
-        byId.set(property.userId, property.ownerName?.trim() || "Unknown user");
-      }
-    }
-    return [...byId.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [properties]);
-
-  const filtered = useMemo(() => {
-    const needle = nameQuery.toLowerCase();
-    const matched = properties.filter((property) => {
-      const statusOk = filter === "all" || getPropertyStatus(property) === filter;
-      const ownerOk = !ownerId || property.userId === ownerId;
-      const nameOk =
-        Boolean(ownerId) ||
-        !needle ||
-        property.title.toLowerCase().includes(needle) ||
-        (property.ownerName || "").toLowerCase().includes(needle);
-      return statusOk && ownerOk && nameOk;
-    });
-    if (!isSuperAdmin) return matched;
-    return [...matched].sort(
-      (a, b) =>
-        (a.ownerName || "").localeCompare(b.ownerName || "") ||
-        a.title.localeCompare(b.title),
-    );
-  }, [properties, filter, ownerId, nameQuery, isSuperAdmin]);
+  const properties = result.properties;
+  const filterCount = detailedPropertyFilterCount(query);
+  const filtersActive =
+    hasPropertyFilters(query) || Boolean(nameQuery) || Boolean(ownerId);
 
   const { page, setPage, totalPages, paginatedItems, pageSize, total } =
-    usePagination(filtered, `${filter}:${ownerId}:${nameQuery}`);
+    usePagination(
+      properties,
+      `${JSON.stringify(query)}:${sort}:${ownerId}:${nameQuery}`,
+    );
 
   return (
     <AppPage
@@ -100,71 +87,75 @@ export default function PropertiesPage() {
       subtitle={
         loading
           ? "Loading…"
-          : isSuperAdmin
+          : isSuperAdmin && !filtersActive
             ? "Each user's properties. Edit or delete, without adding new ones."
-            : `${properties.length} ${properties.length === 1 ? "property" : "properties"}`
+            : properties.length === result.total
+              ? `${result.total} ${result.total === 1 ? "property" : "properties"}`
+              : `${properties.length} of ${result.total} properties`
       }
       action={
-        staff ? undefined : (
-          <AddButton onClick={() => router.push("/properties/new")} />
-        )
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          <SlidersHorizontal size={16} />
+          Filter
+          {filterCount > 0 && (
+            <span className="rounded-full bg-primary-foreground/20 px-1.5 text-[11px] tabular-nums">
+              {filterCount}
+            </span>
+          )}
+        </button>
       }
     >
-      {isSuperAdmin && (
-        <OwnerFilter
-          searchable
-          users={ownersWithProperties}
-          value={ownerId}
-          onChange={setOwnerId}
-          query={nameInput}
-          onQueryChange={setNameInput}
-          placeholder="Search a user who has properties"
-        />
-      )}
-      {!isSuperAdmin && (
-        <label className="mb-4 block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-            Search name
-          </span>
-          <input
-            value={nameInput}
-            placeholder="Search property name"
-            onChange={(event) => setNameInput(event.target.value)}
-            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm text-primary outline-none focus:border-primary"
+      <div className="mb-4 grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_15.5rem] md:gap-4">
+        {isSuperAdmin ? (
+          <OwnerFilter
+            searchable
+            className="relative min-w-0"
+            users={result.owners}
+            value={ownerId}
+            onChange={setOwnerId}
+            query={nameInput}
+            onQueryChange={setNameInput}
+            placeholder="Search a user who has properties"
           />
-        </label>
-      )}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {filters.map((chip) => (
-          <button
-            key={chip.id}
-            type="button"
-            onClick={() => setFilter(chip.id)}
-            className={cn(
-              "shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-colors",
-              filter === chip.id
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-surface text-muted",
-            )}
-          >
-            {chip.label}
-          </button>
-        ))}
+        ) : (
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+              Search name
+            </span>
+            <input
+              value={nameInput}
+              placeholder="Search property name"
+              onChange={(event) => setNameInput(event.target.value)}
+              className="w-full rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm text-primary outline-none focus:border-primary"
+            />
+          </label>
+        )}
+        <PropertyListControls
+          query={query}
+          sort={sort}
+          locations={result.locations}
+          filtersOpen={filtersOpen}
+          onFiltersOpenChange={setFiltersOpen}
+          onQueryChange={setQuery}
+          onSortChange={setSort}
+        />
       </div>
 
       {loading ? (
         <PropertyListSkeleton count={3} />
-      ) : filtered.length === 0 ? (
+      ) : properties.length === 0 ? (
         <div className="rounded-2xl bg-surface px-4 py-9 text-center text-[13.5px] leading-relaxed text-muted">
           <House
             size={36}
             strokeWidth={1.5}
             className="mx-auto mb-3 text-upcoming"
           />
-          {properties.length === 0
-            ? staff
-              ? "No properties yet."
-              : "No properties yet — tap + Add to create your first listing."
+          {result.total === 0
+            ? "No properties yet."
             : nameQuery
               ? "No properties match that name."
               : ownerId

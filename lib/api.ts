@@ -5,6 +5,7 @@ import type {
   ParsedLead,
   Property,
   PropertyFormData,
+  PropertyListResult,
   OtpVerifyResult,
   User,
   UserProfileData,
@@ -15,6 +16,12 @@ import {
   type LeadSort,
 } from "./lead-filters";
 import { leadListSearchParams } from "./lead-list-search";
+import {
+  emptyPropertyListQuery,
+  type PropertyListQuery,
+  type PropertySort,
+} from "./property-filters";
+import { propertyListSearch } from "./property-list-search";
 import { isStaffRole } from "./roles";
 import {
   clearStoredUser,
@@ -180,8 +187,23 @@ export const api = {
     });
   },
 
-  getProperties() {
-    return request<Property[]>("/api/properties");
+  getProperties(params?: {
+    query?: PropertyListQuery;
+    sort?: PropertySort;
+    ownerId?: string;
+    name?: string;
+  }) {
+    const search = params
+      ? propertyListSearch({
+          query: params.query ?? emptyPropertyListQuery(),
+          sort: params.sort ?? "newest",
+          ownerId: params.ownerId,
+          name: params.name,
+        })
+      : "";
+    return request<PropertyListResult>(
+      search ? `/api/properties?${search}` : "/api/properties",
+    );
   },
 
   getProperty(id: string) {

@@ -10,6 +10,7 @@ export function OwnerFilter({
   query = "",
   onQueryChange,
   placeholder = "Search a user name",
+  className,
 }: {
   users: { id: string; name: string }[];
   value: string;
@@ -18,6 +19,7 @@ export function OwnerFilter({
   query?: string;
   onQueryChange?: (query: string) => void;
   placeholder?: string;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState(query);
@@ -45,7 +47,7 @@ export function OwnerFilter({
 
   if (!searchable) {
     return (
-      <label className="mb-4 block">
+      <label className={className ?? "mb-4 block"}>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
           User
         </span>
@@ -68,7 +70,7 @@ export function OwnerFilter({
   const selected = users.find((user) => user.id === value);
 
   return (
-    <div ref={rootRef} className="relative mb-4">
+    <div ref={rootRef} className={className ?? "relative mb-4"}>
       <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
         Search name
       </label>

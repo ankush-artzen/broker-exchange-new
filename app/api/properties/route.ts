@@ -1,9 +1,16 @@
 import { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
-import { isAdmin, propertyScope } from "@/lib/access";
+import { isAdmin, isSuperAdmin, propertyScope } from "@/lib/access";
 import { getAuthUser, unauthorized } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { listingInputError } from "@/lib/property-input";
+import {
+  collectPropertyLocations,
+  matchesPropertyQuery,
+  sortProperties,
+  sortPropertiesGroupedByOwner,
+} from "@/lib/property-filters";
+import { parsePropertyListRequest } from "@/lib/property-list-params";
 import {
   listingFromBody,
   optionalText,
@@ -16,22 +23,53 @@ export async function GET(request: NextRequest) {
   if (!user) return unauthorized();
 
   try {
+    const parsed = parsePropertyListRequest(request.nextUrl.searchParams);
+    const ownerId = isAdmin(user) ? parsed.ownerId : "";
+    const needle = parsed.name.toLowerCase();
+    const superAdmin = isSuperAdmin(user);
     const properties = await prisma.property.findMany({
       where: propertyScope(user),
-      orderBy: { updatedAt: "desc" },
     });
     const names = isAdmin(user)
       ? await ownerNames(properties.map((property) => property.userId))
       : null;
 
-    return Response.json(
-      properties.map((property) => ({
-        ...serializeProperty(property, false),
-        ...(names
-          ? { ownerName: names.get(property.userId) ?? null }
-          : {}),
-      })),
-    );
+    const serialized = properties.map((property) => ({
+      ...serializeProperty(property, false),
+      ...(names ? { ownerName: names.get(property.userId) ?? null } : {}),
+    }));
+    const matched = serialized.filter((property) => {
+      const ownerOk = !ownerId || property.userId === ownerId;
+      const nameOk =
+        Boolean(ownerId) ||
+        !needle ||
+        property.title.toLowerCase().includes(needle) ||
+        (property.ownerName || "").toLowerCase().includes(needle);
+      return ownerOk && nameOk && matchesPropertyQuery(property, parsed.query);
+    });
+    const sorted = superAdmin
+      ? sortPropertiesGroupedByOwner(matched, parsed.sort)
+      : sortProperties(matched, parsed.sort);
+    const ownerNamesById = new Map<string, string>();
+    if (superAdmin) {
+      for (const property of serialized) {
+        if (!ownerNamesById.has(property.userId)) {
+          ownerNamesById.set(
+            property.userId,
+            property.ownerName?.trim() || "Unknown user",
+          );
+        }
+      }
+    }
+
+    return Response.json({
+      properties: sorted,
+      total: serialized.length,
+      locations: collectPropertyLocations(serialized),
+      owners: [...ownerNamesById.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    });
   } catch (error) {
     console.error("get properties error:", error);
     return Response.json(

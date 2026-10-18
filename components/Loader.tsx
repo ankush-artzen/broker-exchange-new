@@ -100,9 +100,15 @@ export function PropertyListSkeleton({ count = 3 }: { count?: number }) {
 
 export function StatSkeleton() {
   return (
-    <div className="px-2 text-center" aria-hidden>
-      <div className="mx-auto h-8 w-10 animate-pulse rounded bg-white/25" />
-      <div className="mx-auto mt-2 h-2.5 w-14 animate-pulse rounded bg-white/20" />
+    <div
+      className="rounded-2xl border border-border/70 bg-surface px-2 py-3.5 md:flex md:items-center md:gap-3 md:px-4 md:py-4"
+      aria-hidden
+    >
+      <div className="mx-auto h-8 w-8 animate-pulse rounded-full bg-upcoming md:mx-0" />
+      <div className="md:min-w-0 md:flex-1">
+        <div className="mx-auto mt-2 h-7 w-8 animate-pulse rounded bg-upcoming md:mx-0 md:mt-0" />
+        <div className="mx-auto mt-2 h-2.5 w-14 animate-pulse rounded bg-upcoming md:mx-0" />
+      </div>
     </div>
   );
 }

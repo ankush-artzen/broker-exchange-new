@@ -16,6 +16,7 @@
     "lib/lead-requirements.test.ts",
     "lib/lead-list-where.test.ts",
     "lib/listing-shape.test.ts",
+    "lib/property-filters.test.ts",
     "lib/listing-shape.ts",
     "lib/lead-filters.ts",
     "lib/price.ts",

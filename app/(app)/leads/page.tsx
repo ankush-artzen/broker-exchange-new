@@ -1,26 +1,25 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { Lead, LeadListResult } from "@/lib/types";
 import { api } from "@/lib/api";
 import { useAccess } from "@/components/AccessProvider";
-import { isStaffRole } from "@/lib/roles";
 import { LeadCard } from "@/components/LeadCard";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
-import { AddButton, AppPage } from "@/components/AppPage";
+import { AppPage } from "@/components/AppPage";
 import { ListSkeleton } from "@/components/Loader";
 import { ListPagination } from "@/components/ListPagination";
 import { LeadListControls } from "@/components/LeadListControls";
 import { OwnerFilter } from "@/components/OwnerFilter";
 import { usePagination } from "@/hooks/usePagination";
 import {
+  detailedFilterCount,
   emptyLeadListQuery,
   hasLeadFilters,
   type LeadListQuery,
   type LeadSort,
 } from "@/lib/lead-filters";
-import { User } from "lucide-react";
+import { SlidersHorizontal, User } from "lucide-react";
 
 const emptyResult: LeadListResult = {
   leads: [],
@@ -31,10 +30,8 @@ const emptyResult: LeadListResult = {
 };
 
 export default function LeadsPage() {
-  const router = useRouter();
   const { role } = useAccess();
   const isSuperAdmin = role === "SUPERADMIN";
-  const staff = isStaffRole(role);
   const [result, setResult] = useState<LeadListResult>(emptyResult);
   const [ownerId, setOwnerId] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -43,6 +40,7 @@ export default function LeadsPage() {
   const [selected, setSelected] = useState<Lead | null>(null);
   const [query, setQuery] = useState<LeadListQuery>(emptyLeadListQuery);
   const [sort, setSort] = useState<LeadSort>("follow-up");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   const load = useCallback(() => {
@@ -74,6 +72,7 @@ export default function LeadsPage() {
   }, [nameInput]);
 
   const leads = result.leads;
+  const filterCount = detailedFilterCount(query);
   const filtersActive = hasLeadFilters(query) || Boolean(nameQuery) || Boolean(ownerId);
 
   const { page, setPage, totalPages, paginatedItems, pageSize, total } =
@@ -95,43 +94,56 @@ export default function LeadsPage() {
               : `${leads.length} of ${result.total} leads`
       }
       action={
-        staff ? undefined : (
-          <AddButton onClick={() => router.push("/leads/create")} />
-        )
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          <SlidersHorizontal size={16} />
+          Filter
+          {filterCount > 0 && (
+            <span className="rounded-full bg-primary-foreground/20 px-1.5 text-[11px] tabular-nums">
+              {filterCount}
+            </span>
+          )}
+        </button>
       }
     >
-      {isSuperAdmin && (
-        <OwnerFilter
-          searchable
-          users={result.owners}
-          value={ownerId}
-          onChange={setOwnerId}
-          query={nameInput}
-          onQueryChange={setNameInput}
-          placeholder="Search a user who has leads"
-        />
-      )}
-      {!isSuperAdmin && (
-        <label className="mb-4 block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-            Search name
-          </span>
-          <input
-            value={nameInput}
-            placeholder="Search lead name"
-            onChange={(event) => setNameInput(event.target.value)}
-            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm text-primary outline-none focus:border-primary"
+      <div className="mb-4 grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_15.5rem] md:gap-4">
+        {isSuperAdmin ? (
+          <OwnerFilter
+            searchable
+            className="relative min-w-0"
+            users={result.owners}
+            value={ownerId}
+            onChange={setOwnerId}
+            query={nameInput}
+            onQueryChange={setNameInput}
+            placeholder="Search a user who has leads"
           />
-        </label>
-      )}
-      <LeadListControls
-        query={query}
-        sort={sort}
-        locations={result.locations}
-        intentCounts={loading ? null : result.intentCounts}
-        onQueryChange={setQuery}
-        onSortChange={setSort}
-      />
+        ) : (
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+              Search name
+            </span>
+            <input
+              value={nameInput}
+              placeholder="Search lead name"
+              onChange={(event) => setNameInput(event.target.value)}
+              className="w-full rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm text-primary outline-none focus:border-primary"
+            />
+          </label>
+        )}
+        <LeadListControls
+          query={query}
+          sort={sort}
+          locations={result.locations}
+          filtersOpen={filtersOpen}
+          onFiltersOpenChange={setFiltersOpen}
+          onQueryChange={setQuery}
+          onSortChange={setSort}
+        />
+      </div>
 
       {loading ? (
         <ListSkeleton count={4} />
@@ -143,9 +155,7 @@ export default function LeadsPage() {
             className="mx-auto mb-3 text-upcoming"
           />
           {result.total === 0
-            ? staff
-              ? "No leads yet."
-              : "No leads yet — tap + Add to create your first one."
+            ? "No leads yet."
             : nameQuery
               ? "No leads match that name."
               : ownerId

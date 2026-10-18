@@ -77,6 +77,13 @@ export interface Lead {
   updatedAt: string;
 }
 
+export interface PropertyListResult {
+  properties: Property[];
+  total: number;
+  locations: string[];
+  owners: { id: string; name: string }[];
+}
+
 export interface Property {
   id: string;
   userId: string;
