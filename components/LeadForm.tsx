@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { LeadFormData, ParsedLead } from "@/lib/types";
-import { api } from "@/lib/api";
+import type { LeadFormData } from "@/lib/types";
+// Temporary: AI parse-lead is off.
+// import type { ParsedLead } from "@/lib/types";
+// Temporary: remarks AI is off.
+// import { api } from "@/lib/api";
 import {
   cn,
   isValidIndianPhone,
@@ -23,10 +26,11 @@ import {
   parseBudgetRange,
   viewLead,
 } from "@/lib/lead-filters";
-import {
-  extractionFormPatch,
-  filledExtractionLabels,
-} from "@/lib/lead-ai";
+// Temporary: AI parse-lead is off.
+// import {
+//   extractionFormPatch,
+//   filledExtractionLabels,
+// } from "@/lib/lead-ai";
 import {
   normalizePlotSizeUnit,
   parseMeasureRange,
@@ -42,7 +46,8 @@ import {
 } from "@/lib/form-errors";
 import { PhoneField } from "@/components/PhoneField";
 import { ButtonLoader } from "@/components/Loader";
-import { CalendarDays, Sparkles } from "lucide-react";
+import { CalendarDays } from "lucide-react";
+// import { Sparkles } from "lucide-react";
 
 const emptyLead: LeadFormData = {
   name: "",
@@ -168,8 +173,9 @@ export function LeadForm({
   const [maxBudget, setMaxBudget] = useState(
     () => leadBudgetInputs(initial ?? {}).max,
   );
-  const [aiBusy, setAiBusy] = useState<"fill" | "remarks" | null>(null);
-  const [aiMessage, setAiMessage] = useState("");
+  // Temporary: remarks AI is off.
+  // const [aiBusy, setAiBusy] = useState<"fill" | "remarks" | null>(null);
+  // const [aiMessage, setAiMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<
@@ -309,82 +315,84 @@ export function LeadForm({
     }
   };
 
-  const applyExtraction = (result: ParsedLead) => {
-    const patch = extractionFormPatch(result);
-    if (patch.name) patch.name = sanitizePersonName(patch.name);
-    if (patch.followUpDate) patch.followUpDate = toLocalDateKey(patch.followUpDate);
-    setForm((current) => ({ ...current, ...patch }));
-    if (result.budget) {
-      const budgets = leadBudgetInputs({ budget: result.budget });
-      setMinBudget(budgets.min);
-      setMaxBudget(budgets.max);
-    }
-    return filledExtractionLabels(result);
-  };
+  // Temporary: skip /api/ai/parse-lead. Notes stay as written; fields are not auto-filled.
+  // const applyExtraction = (result: ParsedLead) => {
+  //   const patch = extractionFormPatch(result);
+  //   if (patch.name) patch.name = sanitizePersonName(patch.name);
+  //   if (patch.followUpDate) patch.followUpDate = toLocalDateKey(patch.followUpDate);
+  //   setForm((current) => ({ ...current, ...patch }));
+  //   if (result.budget) {
+  //     const budgets = leadBudgetInputs({ budget: result.budget });
+  //     setMinBudget(budgets.min);
+  //     setMaxBudget(budgets.max);
+  //   }
+  //   return filledExtractionLabels(result);
+  // };
+  //
+  // const fillFromNotes = async () => {
+  //   const text = form.notes?.trim() ?? "";
+  //   if (!text) {
+  //     setAiMessage("Write the lead in Notes first. Remarks stay separate.");
+  //     return;
+  //   }
+  //   setAiBusy("fill");
+  //   setAiMessage("");
+  //   try {
+  //     const result = await api.parseLead(text, "en-IN");
+  //     const filled = applyExtraction(result);
+  //     setAiMessage(
+  //       filled.length
+  //         ? `Filled ${filled.join(", ")}. Notes and remarks were kept.`
+  //         : "Nothing specific was stated, so the other fields were left blank. Notes and remarks were kept.",
+  //     );
+  //   } catch (err) {
+  //     setAiMessage(err instanceof Error ? err.message : "Could not read the notes");
+  //   } finally {
+  //     setAiBusy(null);
+  //   }
+  // };
 
-  const fillFromNotes = async () => {
-    const text = form.notes?.trim() ?? "";
-    if (!text) {
-      setAiMessage("Write the lead in Notes first. Remarks stay separate.");
-      return;
-    }
-    setAiBusy("fill");
-    setAiMessage("");
-    try {
-      const result = await api.parseLead(text, "en-IN");
-      const filled = applyExtraction(result);
-      setAiMessage(
-        filled.length
-          ? `Filled ${filled.join(", ")}. Notes and remarks were kept.`
-          : "Nothing specific was stated, so the other fields were left blank. Notes and remarks were kept.",
-      );
-    } catch (err) {
-      setAiMessage(err instanceof Error ? err.message : "Could not read the notes");
-    } finally {
-      setAiBusy(null);
-    }
-  };
-
-  const suggestRemarks = async () => {
-    setAiBusy("remarks");
-    setAiMessage("");
-    try {
-      const { budgetMin, budgetMax } = budgetNumbers();
-      const result = await api.suggestLeadRemarks({
-        name: form.name,
-        phone: form.phone,
-        intent: form.intent,
-        category: form.category,
-        propertyType: form.propertyTypes?.[0],
-        propertyTypes: form.propertyTypes,
-        bhk: form.bhks?.[0],
-        bhks: form.bhks,
-        location: form.locations?.join(", ") || form.location,
-        locations: form.locations,
-        budget: formatBudgetLabel(budgetMin, budgetMax),
-        plotSize: form.plotSize,
-        constructionStatus: form.constructionStatus,
-        furnishing: form.furnishing,
-        floorPreference: form.floorPreference,
-        facing: form.facing,
-        parking: form.parking,
-        amenities: form.amenities,
-        purpose: form.purpose,
-        homeLoan: form.homeLoan,
-        possessionTimeline: form.possessionTimeline,
-        temperature: form.temperature,
-        followUpDate: form.followUpDate,
-        notes: form.notes,
-        status: form.status,
-      });
-      setForm((current) => ({ ...current, remarks: result.remarks }));
-      setAiMessage("Remarks added. Your notes were kept.");
-    } catch (err) {
-      setAiMessage(err instanceof Error ? err.message : "Could not write remarks");
-    } finally {
-      setAiBusy(null);
-    }
-  };
+  // Temporary: skip /api/ai/lead-remarks.
+  // const suggestRemarks = async () => {
+  //   setAiBusy("remarks");
+  //   setAiMessage("");
+  //   try {
+  //     const { budgetMin, budgetMax } = budgetNumbers();
+  //     const result = await api.suggestLeadRemarks({
+  //       name: form.name,
+  //       phone: form.phone,
+  //       intent: form.intent,
+  //       category: form.category,
+  //       propertyType: form.propertyTypes?.[0],
+  //       propertyTypes: form.propertyTypes,
+  //       bhk: form.bhks?.[0],
+  //       bhks: form.bhks,
+  //       location: form.locations?.join(", ") || form.location,
+  //       locations: form.locations,
+  //       budget: formatBudgetLabel(budgetMin, budgetMax),
+  //       plotSize: form.plotSize,
+  //       constructionStatus: form.constructionStatus,
+  //       furnishing: form.furnishing,
+  //       floorPreference: form.floorPreference,
+  //       facing: form.facing,
+  //       parking: form.parking,
+  //       amenities: form.amenities,
+  //       purpose: form.purpose,
+  //       homeLoan: form.homeLoan,
+  //       possessionTimeline: form.possessionTimeline,
+  //       temperature: form.temperature,
+  //       followUpDate: form.followUpDate,
+  //       notes: form.notes,
+  //       status: form.status,
+  //     });
+  //     setForm((current) => ({ ...current, remarks: result.remarks }));
+  //     setAiMessage("Remarks added. Your notes were kept.");
+  //   } catch (err) {
+  //     setAiMessage(err instanceof Error ? err.message : "Could not write remarks");
+  //   } finally {
+  //     setAiBusy(null);
+  //   }
+  // };
 
   const isAdd = variant === "add";
 
@@ -544,6 +552,7 @@ export function LeadForm({
           placeholder="Write the lead in your own words"
           variant={variant}
         />
+        {/* Temporary: AI parse-lead disabled.
         <button
           type="button"
           onClick={() => void fillFromNotes()}
@@ -556,7 +565,9 @@ export function LeadForm({
         <p className="text-[12px] leading-relaxed text-muted">
           Uses only details written in the notes. Missing information stays blank.
         </p>
+        */}
 
+        {/* Temporary: Remarks and Suggest remarks are off.
         <NotesField
           label="Remarks"
           value={form.remarks ?? ""}
@@ -580,6 +591,7 @@ export function LeadForm({
         {aiMessage && (
           <p className="text-[12.5px] leading-relaxed text-primary">{aiMessage}</p>
         )}
+        */}
       </div>
 
       <button

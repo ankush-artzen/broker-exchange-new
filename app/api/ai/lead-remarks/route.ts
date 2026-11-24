@@ -26,6 +26,12 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser(request);
   if (!user) return unauthorized();
 
+  // Temporary stop: remarks AI is off. Voice goes into notes only.
+  return Response.json(
+    { error: "AI remarks are temporarily off" },
+    { status: 503 },
+  );
+
   try {
     const body = await request.json();
     const facts = remarkSourceLines(body);

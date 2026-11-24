@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { LeadFormData, ParsedLead, SpeechLanguage } from "@/lib/types";
-import { extractionFormPatch } from "@/lib/lead-ai";
-import { api } from "@/lib/api";
+import type { LeadFormData, SpeechLanguage } from "@/lib/types";
+// Temporary: AI parse-lead is off. Voice text goes straight into notes.
+// import type { ParsedLead } from "@/lib/types";
+// import { extractionFormPatch } from "@/lib/lead-ai";
+// import { api } from "@/lib/api";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { formErrorBanner } from "@/lib/form-errors";
 import { LeadForm } from "./LeadForm";
-import { ButtonLoader } from "@/components/Loader";
+// import { ButtonLoader } from "@/components/Loader";
 import { Mic, MicOff, Pencil, RotateCcw, X } from "lucide-react";
 import { Modal } from "./Modal";
 import { cn } from "@/lib/utils";
@@ -64,7 +66,7 @@ export function VoiceLeadCapture({
   const [typedText, setTypedText] = useState("");
   const [formInitial, setFormInitial] = useState<Partial<LeadFormData>>({});
   const [formKey, setFormKey] = useState(0);
-  const [parsing, setParsing] = useState(false);
+  // const [parsing, setParsing] = useState(false);
   const [error, setError] = useState("");
   const [showVoiceHint, setShowVoiceHint] = useState(false);
   const [parseStatus, setParseStatus] = useState("Tap and describe the lead");
@@ -139,24 +141,28 @@ export function VoiceLeadCapture({
       setError("Please speak or type something first");
       return;
     }
-    setParsing(true);
-    setParseStatus("Understanding…");
-    try {
-      const result: ParsedLead = await api.parseLead(text, language);
-      fillForm({
-        notes: text,
-        ...extractionFormPatch(result),
-        ...(result.budget ? { budget: result.budget } : {}),
-      });
-      setParseStatus("Filled from what you said. Check the form before saving.");
-      dismissVoiceHint();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "AI parsing failed");
-      fillForm({ notes: text });
-      setParseStatus("Couldn't parse automatically — notes filled.");
-    } finally {
-      setParsing(false);
-    }
+    // Temporary: skip /api/ai/parse-lead. Put the voice (or typed text) into notes only.
+    // setParsing(true);
+    // setParseStatus("Understanding…");
+    // try {
+    //   const result: ParsedLead = await api.parseLead(text, language);
+    //   fillForm({
+    //     notes: text,
+    //     ...extractionFormPatch(result),
+    //     ...(result.budget ? { budget: result.budget } : {}),
+    //   });
+    //   setParseStatus("Filled from what you said. Check the form before saving.");
+    //   dismissVoiceHint();
+    // } catch (err) {
+    //   setError(err instanceof Error ? err.message : "AI parsing failed");
+    //   fillForm({ notes: text });
+    //   setParseStatus("Couldn't parse automatically — notes filled.");
+    // } finally {
+    //   setParsing(false);
+    // }
+    fillForm({ notes: text });
+    setParseStatus("Added to notes. Check the form before saving.");
+    dismissVoiceHint();
   };
 
   const spokenText = () =>
@@ -173,7 +179,8 @@ export function VoiceLeadCapture({
     if (
       parseStatus.startsWith("Filled") ||
       parseStatus.startsWith("Couldn't") ||
-      parseStatus.startsWith("Understanding")
+      parseStatus.startsWith("Understanding") ||
+      parseStatus.startsWith("Added")
     ) {
       return parseStatus;
     }
@@ -263,7 +270,7 @@ export function VoiceLeadCapture({
             <button
               key={l.code}
               type="button"
-              disabled={busy || parsing}
+              disabled={busy}
               onClick={() => setLanguage(l.code)}
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-50",
@@ -288,11 +295,11 @@ export function VoiceLeadCapture({
             />
             <button
               type="button"
-              disabled={parsing || !typedText.trim()}
+              disabled={!typedText.trim()}
               onClick={handleParse}
               className="rounded-[10px] bg-secondary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
-              {parsing ? <ButtonLoader label="Processing…" size={14} /> : "Fill from text"}
+              Add to notes
             </button>
             {supported && (
               <button
@@ -309,7 +316,7 @@ export function VoiceLeadCapture({
             <button
               type="button"
               onClick={() => (micSession ? turnMicOff() : turnMicOn())}
-              disabled={!supported || parsing || processing}
+              disabled={!supported || processing}
               aria-pressed={listening}
               aria-busy={starting || processing}
               aria-label={
@@ -414,13 +421,13 @@ export function VoiceLeadCapture({
                 <button
                   type="button"
                   onClick={() => (micSession ? turnMicOff() : turnMicOn())}
-                  disabled={parsing || processing}
+                  disabled={processing}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors",
                     listening
                       ? "border-overdue-muted bg-overdue-muted text-white"
                       : "border-primary bg-primary text-primary-foreground",
-                    (parsing || processing) && "opacity-50",
+                    processing && "opacity-50",
                   )}
                 >
                   {listening ? <MicOff size={14} /> : <Mic size={14} />}
@@ -435,7 +442,6 @@ export function VoiceLeadCapture({
                 <button
                   type="button"
                   onClick={resetVoice}
-                  disabled={parsing}
                   className="inline-flex items-center gap-1.5 rounded-full border border-[#e4d3b4] bg-surface px-3.5 py-1.5 text-[12.5px] font-semibold text-muted transition-colors disabled:opacity-50"
                 >
                   <RotateCcw size={14} />
@@ -446,11 +452,10 @@ export function VoiceLeadCapture({
             {supported && spokenText().trim() && !processing && (
               <button
                 type="button"
-                disabled={parsing}
                 onClick={handleParse}
-                className="mt-3 rounded-[10px] bg-secondary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                className="mt-3 rounded-[10px] bg-secondary px-4 py-2 text-xs font-semibold text-primary-foreground"
               >
-                {parsing ? <ButtonLoader label="Processing…" size={14} /> : "Fill from speech"}
+                Add to notes
               </button>
             )}
             <button

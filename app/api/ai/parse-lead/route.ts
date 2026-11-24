@@ -94,6 +94,12 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser(request);
   if (!user) return unauthorized();
 
+  // Temporary stop: voice is saved into notes on the client. Do not call the model.
+  return Response.json(
+    { error: "AI lead parsing is temporarily off" },
+    { status: 503 },
+  );
+
   try {
     const { text, language } = await request.json();
 
