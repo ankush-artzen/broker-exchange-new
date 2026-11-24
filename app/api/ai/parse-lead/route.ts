@@ -7,6 +7,11 @@ import {
 } from "@/lib/ai-client";
 import { sanitizeExtractedLead } from "@/lib/lead-ai";
 
+/** Temporary: voice is saved into notes on the client. Do not call the model. */
+function isLeadParsingEnabled(): boolean {
+  return false;
+}
+
 function extractionPrompt(text: string, langLabel: string) {
   return `You extract real-estate lead requirements from a broker's spoken notes.
 The text is in ${langLabel}. It may be English, Hindi, Hinglish, or Punjabi.
@@ -94,11 +99,12 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser(request);
   if (!user) return unauthorized();
 
-  // Temporary stop: voice is saved into notes on the client. Do not call the model.
-  return Response.json(
-    { error: "AI lead parsing is temporarily off" },
-    { status: 503 },
-  );
+  if (!isLeadParsingEnabled()) {
+    return Response.json(
+      { error: "AI lead parsing is temporarily off" },
+      { status: 503 },
+    );
+  }
 
   try {
     const { text, language } = await request.json();

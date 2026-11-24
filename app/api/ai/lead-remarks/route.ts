@@ -7,6 +7,11 @@ import {
 } from "@/lib/ai-client";
 import { remarkSourceLines } from "@/lib/lead-ai";
 
+/** Temporary: remarks AI is off. Voice goes into notes only. */
+function isLeadRemarksEnabled(): boolean {
+  return false;
+}
+
 function remarksPrompt(facts: string[]) {
   return `Write a short remark for a property broker.
 
@@ -26,11 +31,12 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser(request);
   if (!user) return unauthorized();
 
-  // Temporary stop: remarks AI is off. Voice goes into notes only.
-  return Response.json(
-    { error: "AI remarks are temporarily off" },
-    { status: 503 },
-  );
+  if (!isLeadRemarksEnabled()) {
+    return Response.json(
+      { error: "AI remarks are temporarily off" },
+      { status: 503 },
+    );
+  }
 
   try {
     const body = await request.json();
